@@ -32,12 +32,15 @@ export enum LibraryActionTypes {
   DeleteMultipleComics = '[LIBRARY] Delete multiple comics',
   MultipleComicsDeleted = '[LIBRARY] Multiple comics deleted',
   DeleteMultipleComicsFailed = '[LIBRARY] Failed to delete multiple comics',
+  UndeleteMultipleComics = '[LIBRARY] Undelete multiple comics',
+  MultipleComicsUndeleted = '[LIBRARY] Multiple comics were undeleted',
+  UndeleteMultipleComicsFailed = '[LIBRARY] Undelete multiple comics failed',
   ConvertComics = '[LIBRARY] Convert comics to a new archive type',
   ComicsConverting = '[LIBRARY] Comics converting to a new archive type',
   ConvertComicsFailed = '[LIBRARY] Failed to convert comics',
-  Consolidate = '[LIBRARY] Consolidate the library',
-  Consolidated = '[LIBRARY] Library is consolidated',
-  ConsolidateFailed = '[LIBRARY] Failed to consolidate library'
+  ClearImageCache = '[LIBRARY] Clear the image cache',
+  ImageCacheCleared = '[LIBRARY] Image cache cleared',
+  ClearImageCacheFailed = '[LIBRARY] Failed to clear the image cache'
 }
 
 export class LibraryReset implements Action {
@@ -118,6 +121,24 @@ export class LibraryDeleteMultipleComicsFailed implements Action {
   constructor() {}
 }
 
+export class LibraryUndeleteMultipleComics implements Action {
+  readonly type = LibraryActionTypes.UndeleteMultipleComics;
+
+  constructor(public payload: { ids: number[] }) {}
+}
+
+export class LibraryMultipleComicsUndeleted implements Action {
+  readonly type = LibraryActionTypes.MultipleComicsUndeleted;
+
+  constructor() {}
+}
+
+export class LibraryUndeleteMultipleComicsFailed implements Action {
+  readonly type = LibraryActionTypes.UndeleteMultipleComicsFailed;
+
+  constructor() {}
+}
+
 export class LibraryConvertComics implements Action {
   readonly type = LibraryActionTypes.ConvertComics;
 
@@ -126,6 +147,8 @@ export class LibraryConvertComics implements Action {
       comics: Comic[];
       archiveType: string;
       renamePages: boolean;
+      deletePages: boolean;
+      deleteOriginal: boolean;
     }
   ) {}
 }
@@ -142,20 +165,20 @@ export class LibraryConvertComicsFailed implements Action {
   constructor() {}
 }
 
-export class LibraryConsolidate implements Action {
-  readonly type = LibraryActionTypes.Consolidate;
+export class LibraryClearImageCache implements Action {
+  readonly type = LibraryActionTypes.ClearImageCache;
 
-  constructor(public payload: { deletePhysicalFiles: boolean }) {}
+  constructor() {}
 }
 
-export class LibraryConsolidated implements Action {
-  readonly type = LibraryActionTypes.Consolidated;
+export class LibraryImageCacheCleared implements Action {
+  readonly type = LibraryActionTypes.ImageCacheCleared;
 
-  constructor(public payload: { deletedComics: Comic[] }) {}
+  constructor() {}
 }
 
-export class LibraryConsolidateFailed implements Action {
-  readonly type = LibraryActionTypes.ConsolidateFailed;
+export class LibraryClearImageCacheFailed implements Action {
+  readonly type = LibraryActionTypes.ClearImageCacheFailed;
 
   constructor() {}
 }
@@ -171,9 +194,12 @@ export type LibraryActions =
   | LibraryDeleteMultipleComics
   | LibraryMultipleComicsDeleted
   | LibraryDeleteMultipleComicsFailed
+  | LibraryUndeleteMultipleComics
+  | LibraryMultipleComicsUndeleted
+  | LibraryUndeleteMultipleComicsFailed
   | LibraryConvertComics
   | LibraryComicsConverting
   | LibraryConvertComicsFailed
-  | LibraryConsolidate
-  | LibraryConsolidated
-  | LibraryConsolidateFailed;
+  | LibraryClearImageCache
+  | LibraryImageCacheCleared
+  | LibraryClearImageCacheFailed;

@@ -20,7 +20,7 @@ import { Injectable } from '@angular/core';
 import { Actions, Effect, ofType } from '@ngrx/effects';
 import { Action } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { Comic, ComicFormat, PageType, ScanType } from 'app/comics';
+import { Comic, ComicFormat, Page, PageType, ScanType } from 'app/comics';
 import { ComicService } from 'app/comics/services/comic.service';
 import { PageService } from 'app/comics/services/page.service';
 import { MessageService } from 'primeng/api';
@@ -43,14 +43,18 @@ import {
   ComicMarkAsReadFailed,
   ComicMarkedAsRead,
   ComicMetadataCleared,
+  ComicPageDeletedSet,
   ComicPageHashBlockingSet,
   ComicPageSaved,
+  ComicPageTypeSet,
   ComicRestored,
   ComicRestoreFailed,
   ComicSaved,
   ComicSaveFailed,
   ComicSavePageFailed,
-  ComicSetPageHashBlockingFailed
+  ComicSetPageDeletedFailed,
+  ComicSetPageHashBlockingFailed,
+  ComicSetPageTypeFailed
 } from '../actions/comic.actions';
 import { LoggerService } from '@angular-ru/logger';
 
@@ -78,7 +82,7 @@ export class ComicEffects {
           this.messageService.add({
             severity: 'error',
             detail: this.translateService.instant(
-              'comics-effects.get-scan-types.error.detail'
+              'comic-effects.get-scan-types.error.detail'
             )
           });
           return of(new ComicGetScanTypesFailed());
@@ -109,7 +113,7 @@ export class ComicEffects {
           this.messageService.add({
             severity: 'error',
             detail: this.translateService.instant(
-              'comics-effects.get-formats.error.detail'
+              'comic-effects.get-formats.error.detail'
             )
           });
           return of(new ComicGetFormatsFailed());
@@ -137,10 +141,11 @@ export class ComicEffects {
             new ComicGotPageTypes({ pageTypes: response })
         ),
         catchError(error => {
+          this.logger.error('service failure getting page types:', error);
           this.messageService.add({
             severity: 'error',
             detail: this.translateService.instant(
-              'comics-effects.get-pabge-types.error.detail'
+              'comic-effects.get-page-types.error.detail'
             )
           });
           return of(new ComicGetPageTypesFailed());
@@ -148,6 +153,7 @@ export class ComicEffects {
       )
     ),
     catchError(error => {
+      this.logger.error('general failure getting page types:', error);
       this.messageService.add({
         severity: 'error',
         detail: this.translateService.instant(
@@ -169,7 +175,7 @@ export class ComicEffects {
           this.messageService.add({
             severity: 'error',
             detail: this.translateService.instant(
-              'comics-effects.get-issue.error.detail',
+              'comic-effects.get-issue.error.detail',
               { id: action.id }
             )
           });
@@ -198,7 +204,7 @@ export class ComicEffects {
           this.messageService.add({
             severity: 'info',
             detail: this.translateService.instant(
-              'comics-effects.save-page.success.detail'
+              'comic-effects.save-page.success.detail'
             )
           })
         ),
@@ -207,7 +213,7 @@ export class ComicEffects {
           this.messageService.add({
             severity: 'error',
             detail: this.translateService.instant(
-              'comics-effects.save-page.error.detail'
+              'comic-effects.save-page.error.detail'
             )
           });
           return of(new ComicSavePageFailed());
@@ -226,6 +232,47 @@ export class ComicEffects {
   );
 
   @Effect()
+  setPageType$: Observable<Action> = this.actions$.pipe(
+    ofType(ComicActionTypes.SetPageType),
+    map(action => action.payload),
+    tap(action => this.logger.debug('effect: setting page type:', action)),
+    switchMap(action =>
+      this.pageService.setPageType(action.page, action.pageType).pipe(
+        tap(response => this.logger.debug('received response:', response)),
+        tap(repsonse =>
+          this.messageService.add({
+            severity: 'info',
+            detail: this.translateService.instant(
+              'comic-effects.set-page-type.success.detail'
+            )
+          })
+        ),
+        map((response: Page) => new ComicPageTypeSet({ page: response })),
+        catchError(error => {
+          this.logger.error('service failure setting page type:', error);
+          this.messageService.add({
+            severity: 'error',
+            detail: this.translateService.instant(
+              'comic-effects.set-page-type.error.detail'
+            )
+          });
+          return of(new ComicSetPageTypeFailed());
+        })
+      )
+    ),
+    catchError(error => {
+      this.logger.error('general failure setting page type:', error);
+      this.messageService.add({
+        severity: 'error',
+        detail: this.translateService.instant(
+          'general-message.error.general-service-failure'
+        )
+      });
+      return of(new ComicSetPageTypeFailed());
+    })
+  );
+
+  @Effect()
   setPageHashBlocking$: Observable<Action> = this.actions$.pipe(
     ofType(ComicActionTypes.SetPageHashBlocking),
     map(action => action.payload),
@@ -235,7 +282,7 @@ export class ComicEffects {
           this.messageService.add({
             severity: 'info',
             detail: this.translateService.instant(
-              'comics-effects.set-page-hash-blocking.success.detail',
+              'comic-effects.set-page-hash-blocking.success.detail',
               { hash: action.page.hash, state: action.state }
             )
           })
@@ -247,7 +294,7 @@ export class ComicEffects {
           this.messageService.add({
             severity: 'error',
             detail: this.translateService.instant(
-              'comics-effects.set-page-hash-blocking.error.detail'
+              'comic-effects.set-page-hash-blocking.error.detail'
             )
           });
           return of(new ComicSetPageHashBlockingFailed());
@@ -275,7 +322,7 @@ export class ComicEffects {
           this.messageService.add({
             severity: 'info',
             detail: this.translateService.instant(
-              'comics-effects.save-comic.success.detail'
+              'comic-effects.save-comic.success.detail'
             )
           })
         ),
@@ -284,7 +331,7 @@ export class ComicEffects {
           this.messageService.add({
             severity: 'error',
             detail: this.translateService.instant(
-              'comics-effects.save-comic.error.detail'
+              'comic-effects.save-comic.error.detail'
             )
           });
           return of(new ComicSaveFailed());
@@ -312,7 +359,7 @@ export class ComicEffects {
           this.messageService.add({
             severity: 'info',
             detail: this.translateService.instant(
-              'comics-effects.clear-metadata.success.detail'
+              'comic-effects.clear-metadata.success.detail'
             )
           })
         ),
@@ -321,7 +368,7 @@ export class ComicEffects {
           this.messageService.add({
             severity: 'error',
             detail: this.translateService.instant(
-              'comics-effects.clear-metadata.error.detail'
+              'comic-effects.clear-metadata.error.detail'
             )
           });
           return of(new ComicClearMetadataFailed());
@@ -349,7 +396,7 @@ export class ComicEffects {
           this.messageService.add({
             severity: 'info',
             detail: this.translateService.instant(
-              'comics-effects.delete-comic.success.detail'
+              'comic-effects.delete-comic.success.detail'
             )
           })
         ),
@@ -358,7 +405,7 @@ export class ComicEffects {
           this.messageService.add({
             severity: 'error',
             detail: this.translateService.instant(
-              'comics-effects.delete-comics.error.detail'
+              'comic-effects.delete-comics.error.detail'
             )
           });
           return of(new ComicDeleteFailed());
@@ -386,7 +433,7 @@ export class ComicEffects {
           this.messageService.add({
             severity: 'info',
             detail: this.translateService.instant(
-              'comics-effects.restore-comic.success.detail'
+              'comic-effects.restore-comic.success.detail'
             )
           })
         ),
@@ -448,6 +495,54 @@ export class ComicEffects {
         )
       });
       return of(new ComicMarkAsReadFailed());
+    })
+  );
+
+  @Effect()
+  deletePage$: Observable<Action> = this.actions$.pipe(
+    ofType(ComicActionTypes.SetPageDeleted),
+    map(action => action.payload),
+    tap(action =>
+      this.logger.debug('effect: setting page deleted status:', action)
+    ),
+    switchMap(action =>
+      this.comicService.deletePage(action.page, action.deleted).pipe(
+        tap(response => this.logger.debug('received response:', response)),
+        tap(() =>
+          this.messageService.add({
+            severity: 'info',
+            detail: this.translateService.instant(
+              'comic-effects.set-page-deleted.success.detail',
+              { deleted: action.deleted }
+            )
+          })
+        ),
+        map((response: Comic) => new ComicPageDeletedSet({ comic: response })),
+        catchError(error => {
+          this.logger.error(
+            'service failure setting page deleted state:',
+            error
+          );
+          this.messageService.add({
+            severity: 'error',
+            detail: this.translateService.instant(
+              'comic-effects.set-page-deleted.error.detail',
+              { deleted: action.deleted }
+            )
+          });
+          return of(new ComicSetPageDeletedFailed());
+        })
+      )
+    ),
+    catchError(error => {
+      this.logger.error('service failure setting page deleted state:', error);
+      this.messageService.add({
+        severity: 'error',
+        detail: this.translateService.instant(
+          'general-message.error.general-service-failure'
+        )
+      });
+      return of(new ComicSetPageDeletedFailed());
     })
   );
 }

@@ -17,10 +17,11 @@
  */
 
 import { API_ROOT_URL } from 'app/app.functions';
+import { COMIXED_API_ROOT } from 'app/app.constants';
 
 export const GET_SCAN_TYPES_URL = `${API_ROOT_URL}/comics/scan_types`;
 export const GET_FORMATS_URL = `${API_ROOT_URL}/comics/formats`;
-export const GET_PAGE_TYPES_URL = `${API_ROOT_URL}/comics/page_types`;
+export const GET_PAGE_TYPES_URL = `${API_ROOT_URL}/pages/types`;
 export const GET_COMIC_URL = `${API_ROOT_URL}/comics/\${id}`;
 export const SAVE_COMIC_URL = `${API_ROOT_URL}/comics/\${id}`;
 export const CLEAR_METADATA_URL = `${API_ROOT_URL}/comics/\${id}/metadata`;
@@ -30,10 +31,13 @@ export const DOWNLOAD_COMIC_URL = `${API_ROOT_URL}/comics/\${id}/download`;
 export const GET_COMIC_COVER_URL = `${API_ROOT_URL}/comics/\${id}/cover/content`;
 export const MARK_COMIC_AS_READ_URL = `${API_ROOT_URL}/comics/\${id}/read`;
 export const MARK_COMIC_AS_UNREAD_URL = `${API_ROOT_URL}/comics/\${id}/read`;
+export const MARK_PAGE_DELETED_URL = `${COMIXED_API_ROOT}/pages/\${id}`;
+export const UNMARK_PAGE_DELETED_URL = `${COMIXED_API_ROOT}/pages/\${id}/undelete`;
 
 export const MISSING_COMIC_IMAGE_URL = '/assets/img/missing-comic-file.png';
 
 export const SAVE_PAGE_URL = `${API_ROOT_URL}/pages/\${id}`;
+export const SET_PAGE_TYPE_URL = `${API_ROOT_URL}/pages/\${id}/type`;
 export const GET_PAGE_CONTENT_URL = `${API_ROOT_URL}/pages/\${id}/content`;
 export const BLOCK_PAGE_HASH_URL = `${API_ROOT_URL}/pages/\${id}/block/\${hash}`;
 export const UNBLOCK_PAGE_HASH_URL = `${API_ROOT_URL}/pages/\${id}/unblock/\${hash}`;

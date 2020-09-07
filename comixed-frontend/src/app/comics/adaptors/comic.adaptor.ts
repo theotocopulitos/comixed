@@ -31,12 +31,15 @@ import {
   ComicDelete,
   ComicGetFormats,
   ComicGetIssue,
+  ComicGetPageTypes,
   ComicGetScanTypes,
   ComicMarkAsRead,
   ComicRestore,
   ComicSave,
   ComicSavePage,
-  ComicSetPageHashBlocking
+  ComicSetPageDeleted,
+  ComicSetPageHashBlocking,
+  ComicSetPageType
 } from 'app/comics/actions/comic.actions';
 import {
   COMIC_FEATURE_KEY,
@@ -62,6 +65,8 @@ export class ComicAdaptor {
   private _deletingComic$ = new BehaviorSubject<boolean>(false);
   private _restoringComic$ = new BehaviorSubject<boolean>(false);
   private _markingAsRead$ = new BehaviorSubject<boolean>(false);
+  private _settingPageType$ = new BehaviorSubject<boolean>(false);
+  private _deletingPage$ = new BehaviorSubject<boolean>(false);
 
   constructor(private logger: LoggerService, private store: Store<AppState>) {
     this.store
@@ -108,6 +113,12 @@ export class ComicAdaptor {
         if (state.settingReadState !== this._markingAsRead$.getValue()) {
           this._markingAsRead$.next(state.settingReadState);
         }
+        if (state.settingPageType !== this._settingPageType$.getValue()) {
+          this._settingPageType$.next(state.settingPageType);
+        }
+        if (state.deletingPage !== this._deletingPage$.getValue()) {
+          this._deletingPage$.next(state.deletingPage);
+        }
       });
   }
 
@@ -139,6 +150,11 @@ export class ComicAdaptor {
 
   get formats$(): Observable<ComicFormat[]> {
     return this._formats$.asObservable();
+  }
+
+  getPageTypes(): void {
+    this.logger.debug('Firing action to load page types');
+    this.store.dispatch(new ComicGetPageTypes());
   }
 
   get fetchingPageTypes$(): Observable<boolean> {
@@ -229,5 +245,32 @@ export class ComicAdaptor {
   markAsUnread(comic: Comic): void {
     this.logger.debug('marking comic as unread:', comic);
     this.store.dispatch(new ComicMarkAsRead({ comic: comic, read: false }));
+  }
+
+  setPageType(page: Page, pageType: PageType): void {
+    this.logger.debug('firing action to set page type:', page, pageType);
+    this.store.dispatch(
+      new ComicSetPageType({ page: page, pageType: pageType })
+    );
+  }
+
+  get settingPageType$(): Observable<boolean> {
+    return this._settingPageType$.asObservable();
+  }
+
+  deletePage(page: Page) {
+    this.logger.debug('deleting a page:', page);
+    this.store.dispatch(new ComicSetPageDeleted({ page: page, deleted: true }));
+  }
+
+  undeletePage(page: Page) {
+    this.logger.debug('undeleting a page:', page);
+    this.store.dispatch(
+      new ComicSetPageDeleted({ page: page, deleted: false })
+    );
+  }
+
+  get deletingPage$(): Observable<boolean> {
+    return this._deletingPage$.asObservable();
   }
 }

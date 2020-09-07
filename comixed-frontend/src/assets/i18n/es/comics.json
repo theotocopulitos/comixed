@@ -1,5 +1,5 @@
 {
-  "comics-effects": {
+  "comic-effects": {
     "get-scan-types": {
       "error": {
         "detail": "Error al cargar tipos de escaneados."
@@ -28,6 +28,14 @@
         "detail": "Error al guardar los cambios en la página."
       }
     },
+    "set-page-type": {
+      "success": {
+        "detail": "Page type changed."
+      },
+      "error": {
+        "detail": "Failed to change page type."
+      }
+    },
     "set-page-hash-blocking": {
       "success": {
         "detail": "Páginas con hash {hash} {state, select, true{bloqueadas} other{desbloqueadas}} correctamente."
@@ -48,7 +56,7 @@
       "success": {
         "detail": "Metadatos borrados correctamente."
       },
-      "error": { 
+      "error": {
         "detail": "Error al borrar los metadatos."
       }
     },
@@ -79,6 +87,14 @@
     "mark-as-read": {
       "error": {
         "detail": "Failed to change the last read date."
+      }
+    },
+    "set-page-deleted": {
+      "success": {
+        "detail": "Page {deleted, select, true{marked} other{unmarked}} for deletion..."
+      },
+      "error": {
+        "detail": "Failed to {deleted, select, true{marked} other{unmarked}} for deletion..."
       }
     }
   },
@@ -127,7 +143,7 @@
       "format-placeholder": "Click para elegir formato...",
       "scan-type-placeholder": "Click para elegir tipo de escaneado...",
       "sort-name-placeholder": "Click para elegir un nombre (de ordenación)...",
-      "comicvine-details-link": "Los detalles se encuentran <a href='http://comicvine.gamespot.com/issue/4000-{comicVineId}'>aquí</a>."
+      "comicvine-details-link": "Los detalles se encuentran <a href='http://comicvine.gamespot.com/issue/4000-{comicVineId}'>aquí</a>.",
       "never-read": "Never"
     },
     "scan-type": {
@@ -144,7 +160,7 @@
       "delete-comic": "Marcar el cómic para eliminación.",
       "undelete-comic": "Marcar el cómic para eliminación.",
       "save-changes": "Guardar cambios.",
-      "undo-changes": "Deshacer cambios."
+      "undo-changes": "Deshacer cambios.",
       "toggle-read": "{marked, select, true{Clear} other{Set}} the last read date."
     }
   },
@@ -163,13 +179,37 @@
     }
   },
   "comic-pages": {
-    "label": {
-      "filename": "Nombre",
-      "dimensions": "Dimensiones"
+    "table": {
+      "header": {
+        "thumbnail": "Thumbnail",
+        "filename": "Filename",
+        "page-type": "Page Type",
+        "hash": "Page Hash",
+        "dimensions": "Size",
+        "blocked-status": "Blocked",
+        "deleted-status": "Delete"
+      },
+      "column": {
+        "blocked-status": "{blocked, select, true{Yes} other{No}}",
+        "deleted-status": "{deleted, select, true{Yes} other{No}}"
+      }
     },
-    "text": {
-      "marked-for-deletion": "Esta página está marcada para eliminación.",
-      "page-is-blocked": "Esta página está bloqueada."
+    "page-type": {
+      "front-cover": "Front Cover",
+      "inner-cover": "Inner Cover",
+      "back-cover": "Back Cover",
+      "roundup": "Roundup",
+      "story": "Story",
+      "advertisement": "Advertisement",
+      "editorial": "Editorial",
+      "letters": "Letters Page",
+      "preview": "Preview",
+      "other": "Other",
+      "filtered": "Filtered"
+    },
+    "tooltip": {
+      "blocked": "Click to {blocked, select, true{unblock} other{block}} this page type...",
+      "deleted": "Click to {deleted, select, true{undelete} other{delete}} this page..."
     }
   },
   "comic-details-editor": {
@@ -177,7 +217,8 @@
       "comicvine-api-key": "ComicVine API Key",
       "series-name": "Serie",
       "volume-name": "Volumen",
-      "issue-number": "Número #"
+      "issue-number": "Número #",
+      "max-records": "Max Records To Fetch"
     },
     "tooltip": {
       "comicvine-api-key": "Click para editar...",
@@ -185,8 +226,15 @@
       "reset-api-key": "Borrar la API key."
     },
     "option": {
-      "fetch-with-cache": "Obtener",
-      "fetch-skip-cache": "Obtener (ignorar caché)"
+      "fetch": {
+        "with-cache": "Obtener",
+        "skip-cache": "Obtener (ignorar caché)"
+      },
+      "max-records": {
+        "all-records": "All records",
+        "100-records": "100 Records",
+        "1000-records": "1000 Records"
+      }
     },
     "text": {
       "comicvine-api-key-placeholder": "Click para cambiar la API key..."
@@ -203,7 +251,7 @@
     },
     "issue-selected": {
       "header": "¿Obtener metadatos para este número?",
-      "message": "¿Seguro que quieres asignar a este cómic el número seleccionado en ComicVine?"
+      "message": "Are you sure you want to replace this comic's details?"
     }
   },
   "comic-details-page": {
@@ -241,11 +289,16 @@
     },
     "context-menu": {
       "open-comic": "Abrir cómic...",
-      "delete-comic": "Eliminar cómic..."
+      "delete-comic": "Eliminar cómic...",
+      "restore-comic": "Restore comic"
     },
     "delete-comic": {
       "header": "¿Eliminar Comic?",
       "message": "¿Seguro que quieres eliminar {title}?"
+    },
+    "restore-comic": {
+      "header": "Restore Comic",
+      "message": "Are you sure you want to restore {title}?"
     }
   },
   "scraping-effects": {

@@ -16,49 +16,88 @@
  * along with this program. If not, see <http://www.gnu.org/licenses>
  */
 
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { SelectItem } from 'primeng/api';
 import { ComicAdaptor } from 'app/comics/adaptors/comic.adaptor';
 import { Subscription } from 'rxjs';
 import { Comic, Page, PageType } from 'app/comics';
+import { LoggerService } from '@angular-ru/logger';
+import { LibraryDisplayAdaptor } from 'app/library';
 
 @Component({
   selector: 'app-comic-pages',
   templateUrl: './comic-pages.component.html',
   styleUrls: ['./comic-pages.component.scss']
 })
-export class ComicPagesComponent implements OnInit {
-  @Input() is_admin: boolean;
+export class ComicPagesComponent implements OnInit, OnDestroy {
+  @Input() isAdmin: boolean;
   @Input() comic: Comic;
-  @Input() image_size: number;
+  @Input() imageSize: number;
+
+  rowsSubscription: Subscription;
+  rows = 10;
+
   pageTypesSubscription: Subscription;
-  pageTypes: PageType[];
-  protected page_type_options: Array<SelectItem> = [];
+  pageTypeOptions: SelectItem[] = [];
+  selectedPage: Page = null;
 
-  constructor(private comicAdaptor: ComicAdaptor) {}
-
-  ngOnInit() {
+  constructor(
+    private logger: LoggerService,
+    private comicAdaptor: ComicAdaptor,
+    private libraryDisplayAdaptor: LibraryDisplayAdaptor
+  ) {
+    this.rowsSubscription = this.libraryDisplayAdaptor.rows$.subscribe(rows => {
+      this.logger.debug(`rows is now ${rows}`);
+      this.rows = rows;
+    });
     this.pageTypesSubscription = this.comicAdaptor.pageTypes$.subscribe(
-      pageTypes => {
-        this.page_type_options = pageTypes.map(pageType => {
+      pageTypes =>
+        (this.pageTypeOptions = pageTypes.map(pageType => {
           return { label: pageType.name, value: pageType };
-        });
-      }
+        }))
     );
-    // TODO fix the preference here
-    //    this.image_size = parseInt(this.user_service.get_user_preference('coverSize', '200'), 10);
+    this.comicAdaptor.getPageTypes();
+  }
+
+  ngOnInit() {}
+
+  ngOnDestroy() {
+    this.rowsSubscription.unsubscribe();
+    this.pageTypesSubscription.unsubscribe();
   }
 
   setPageType(page: Page, pageType: PageType): void {
-    page.page_type = pageType;
-    this.comicAdaptor.savePage(page);
+    this.logger.debug('setting page type:', page, pageType);
+    this.comicAdaptor.setPageType(page, pageType);
   }
 
   blockPage(page: Page): void {
+    this.logger.debug('marking page as blocked:', page);
     this.comicAdaptor.blockPageHash(page);
   }
 
   unblockPage(page: Page): void {
+    this.logger.debug('unmarking page as blocked:', page);
     this.comicAdaptor.unblockPageHash(page);
+  }
+
+  setSelectedPage(page: Page): void {
+    this.logger.debug('setting selected page:', page);
+    this.selectedPage = page;
+  }
+
+  clearSelectedPage(): void {
+    this.logger.debug('clearing selected page');
+    this.selectedPage = null;
+  }
+
+  undeletePage(page: Page) {
+    this.logger.debug('undeleting page:', page);
+    this.comicAdaptor.undeletePage(page);
+  }
+
+  deletePage(page: Page) {
+    this.logger.debug('deleting page:', page);
+    this.comicAdaptor.deletePage(page);
   }
 }

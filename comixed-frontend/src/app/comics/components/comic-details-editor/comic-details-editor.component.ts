@@ -26,15 +26,34 @@ import {
 } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { TranslateService } from '@ngx-translate/core';
-import { Comic } from 'app/comics';
+import { AppState, Comic } from 'app/comics';
 import { ComicAdaptor } from 'app/comics/adaptors/comic.adaptor';
-import { ScrapingAdaptor } from 'app/comics/adaptors/scraping.adaptor';
 import { ScrapingIssue } from 'app/comics/models/scraping-issue';
 import { ScrapingVolume } from 'app/comics/models/scraping-volume';
 import { AuthenticationAdaptor, COMICVINE_API_KEY } from 'app/user';
 import { LoggerService } from '@angular-ru/logger';
-import { ConfirmationService, MenuItem } from 'primeng/api';
+import { ConfirmationService, MenuItem, SelectItem } from 'primeng/api';
 import { Subscription } from 'rxjs';
+import {
+  USER_PREFERENCE_MAX_SCRAPING_RECORDS,
+  USER_PREFERENCE_SKIP_CACHE
+} from 'app/user/user.constants';
+import { Store } from '@ngrx/store';
+import {
+  selectScrapingIssue,
+  selectScrapingIssuesFetching
+} from 'app/comics/selectors/scraping-issue.selectors';
+import { getScrapingIssue } from 'app/comics/actions/scraping-issue.actions';
+import {
+  selectScrapingVolumes,
+  selectScrapingVolumesFetching
+} from 'app/comics/selectors/scraping-volumes.selectors';
+import { getScrapingVolumes } from 'app/comics/actions/scraping-volumes.actions';
+import { scrapeComic } from 'app/comics/actions/scrape-comic.actions';
+import {
+  selectScrapeComicScraping,
+  selectScrapeComicSuccess
+} from 'app/comics/selectors/scrape-comic.selectors';
 
 @Component({
   selector: 'app-comic-details-editor',
@@ -49,12 +68,10 @@ export class ComicDetailsEditorComponent implements OnInit, OnDestroy {
   private _comic: Comic;
 
   userSubscription: Subscription;
-  scrapingComicsSubscription: Subscription;
-  scrapingComics = [];
   fetchingVolumesSubscription: Subscription;
   fetchingVolumes = false;
   volumesSubscription: Subscription;
-  volumes: ScrapingVolume[];
+  volumes: ScrapingVolume[] = [];
   fetchingIssueSubscription: Subscription;
   fetchingIssue = false;
   scrapingSubscription: Subscription;
@@ -68,48 +85,61 @@ export class ComicDetailsEditorComponent implements OnInit, OnDestroy {
   fetchOptions: MenuItem[] = [];
   editingApiKey = false;
   skipCache = false;
+  maxRecordsOptions: SelectItem[] = [];
 
   constructor(
     private logger: LoggerService,
     private authenticationAdaptor: AuthenticationAdaptor,
     private comicAdaptor: ComicAdaptor,
-    private scrapingAdaptor: ScrapingAdaptor,
     private confirmationService: ConfirmationService,
     private translateService: TranslateService,
-    private formBuilder: FormBuilder
+    private formBuilder: FormBuilder,
+    private store: Store<AppState>
   ) {
     this.comicDetailsForm = this.formBuilder.group({
       apiKey: ['', [Validators.required]],
       seriesName: ['', [Validators.required]],
       volumeName: [''],
-      issueNumber: ['', [Validators.required]]
+      issueNumber: ['', [Validators.required]],
+      maxRecords: ['', [Validators.required]]
+    });
+    this.fetchingVolumesSubscription = this.store
+      .select(selectScrapingVolumesFetching)
+      .subscribe(fetching => (this.fetchingVolumes = fetching));
+    this.volumesSubscription = this.store
+      .select(selectScrapingVolumes)
+      .subscribe(volumes => (this.volumes = volumes));
+    this.fetchingIssueSubscription = this.store
+      .select(selectScrapingIssuesFetching)
+      .subscribe(fetching => (this.fetchingIssue = fetching));
+    this.currentIssueSubscription = this.store
+      .select(selectScrapingIssue)
+      .subscribe(issue => (this.currentIssue = issue));
+    this.store.select(selectScrapeComicSuccess).subscribe(success => {
+      if (success) {
+        this.volumes = [];
+      }
     });
   }
 
   ngOnInit() {
-    this.userSubscription = this.authenticationAdaptor.user$.subscribe(user =>
+    this.userSubscription = this.authenticationAdaptor.user$.subscribe(user => {
       this.comicDetailsForm.controls['apiKey'].setValue(
         this.authenticationAdaptor.getPreference(COMICVINE_API_KEY)
-      )
-    );
-    this.scrapingComicsSubscription = this.scrapingAdaptor.comics$.subscribe(
-      comics => (this.scrapingComics = comics)
-    );
-    this.fetchingVolumesSubscription = this.scrapingAdaptor.fetchingVolumes$.subscribe(
-      fetching => (this.fetchingVolumes = fetching)
-    );
-    this.volumesSubscription = this.scrapingAdaptor.volumes$.subscribe(
-      volumes => (this.volumes = volumes)
-    );
-    this.fetchingIssueSubscription = this.scrapingAdaptor.fetchingIssue$.subscribe(
-      fetching => (this.fetchingIssue = fetching)
-    );
-    this.scrapingSubscription = this.scrapingAdaptor.scraping$.subscribe(
-      scraping => (this.scraping = scraping)
-    );
-    this.currentIssueSubscription = this.scrapingAdaptor.issue$.subscribe(
-      issue => (this.currentIssue = issue)
-    );
+      );
+      this.skipCache =
+        (this.authenticationAdaptor.getPreference(USER_PREFERENCE_SKIP_CACHE) ||
+          'false') === 'true';
+      this.maxRecords = parseInt(
+        this.authenticationAdaptor.getPreference(
+          USER_PREFERENCE_MAX_SCRAPING_RECORDS
+        ) || '0',
+        10
+      );
+    });
+    this.store
+      .select(selectScrapeComicScraping)
+      .subscribe(scraping => (this.scraping = scraping));
     this.langChangeSubscription = this.translateService.onLangChange.subscribe(
       () => this.loadTranslatedOptions()
     );
@@ -118,20 +148,15 @@ export class ComicDetailsEditorComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.userSubscription.unsubscribe();
-    this.scrapingComicsSubscription.unsubscribe();
     this.fetchingVolumesSubscription.unsubscribe();
     this.fetchingIssueSubscription.unsubscribe();
     this.currentIssueSubscription.unsubscribe();
-    this.scrapingSubscription.unsubscribe();
   }
 
   @Input()
   set comic(comic: Comic) {
     this._comic = comic;
     this.loadComicDetailsForm();
-    if (!this.multiComicMode) {
-      this.scrapingAdaptor.startScraping([comic]);
-    }
   }
 
   get comic(): Comic {
@@ -139,17 +164,22 @@ export class ComicDetailsEditorComponent implements OnInit, OnDestroy {
   }
 
   private loadTranslatedOptions() {
+    this.loadFetchOptions();
+    this.loadMaxRecordsOptions();
+  }
+
+  private loadFetchOptions() {
     this.fetchOptions = [
       {
         label: this.translateService.instant(
-          'comic-details-editor.option.fetch-with-cache'
+          'comic-details-editor.option.fetch.with-cache'
         ),
         icon: 'fa fa-fw fa-search',
         command: () => this.getVolumes(false)
       },
       {
         label: this.translateService.instant(
-          'comic-details-editor.option.fetch-skip-cache'
+          'comic-details-editor.option.fetch.skip-cache'
         ),
         icon: 'fa fa-fw fa-search',
         command: () => this.getVolumes(true)
@@ -157,22 +187,50 @@ export class ComicDetailsEditorComponent implements OnInit, OnDestroy {
     ];
   }
 
-  private getVolumes(skipCache: boolean): void {
-    this.logger.info(`'getting volumes for comic: skipCache=${skipCache}`);
-    this.skipCache = skipCache;
-    this.scrapingAdaptor.getVolumes(
-      this.getApiKey(),
-      this.getSeriesName(),
-      this.getIssueNumber(),
-      this.skipCache
+  private loadMaxRecordsOptions() {
+    this.maxRecordsOptions = [
+      {
+        label: this.translateService.instant(
+          'comic-details-editor.option.max-records.all-records'
+        ),
+        value: 0
+      },
+      {
+        label: this.translateService.instant(
+          'comic-details-editor.option.max-records.100-records'
+        ),
+        value: 100
+      },
+      {
+        label: this.translateService.instant(
+          'comic-details-editor.option.max-records.1000-records'
+        ),
+        value: 1000
+      }
+    ];
+  }
+
+  getVolumes(skipCache: boolean): void {
+    if (skipCache !== this.skipCache) {
+      this.logger.info(`getting volumes for comic: skipCache=${skipCache}`);
+      this.authenticationAdaptor.setPreference(
+        USER_PREFERENCE_SKIP_CACHE,
+        `${skipCache}`
+      );
+    }
+    this.store.dispatch(
+      getScrapingVolumes({
+        apiKey: this.apiKey,
+        series: this.seriesName,
+        volume: this.volume,
+        maxRecords: this.maxRecords,
+        skipCache: this.skipCache
+      })
     );
   }
 
   saveApiKey() {
-    this.authenticationAdaptor.setPreference(
-      COMICVINE_API_KEY,
-      this.getApiKey()
-    );
+    this.authenticationAdaptor.setPreference(COMICVINE_API_KEY, this.apiKey);
     this.editingApiKey = false;
   }
 
@@ -203,9 +261,9 @@ export class ComicDetailsEditorComponent implements OnInit, OnDestroy {
       accept: () => {
         this.comicAdaptor.saveComic({
           ...this._comic,
-          series: this.getSeriesName(),
-          volume: this.getVolume(),
-          issueNumber: this.getIssueNumber()
+          series: this.seriesName,
+          volume: this.volume,
+          issueNumber: this.issueNumber
         });
         this.comicDetailsForm.markAsPristine();
       }
@@ -216,30 +274,68 @@ export class ComicDetailsEditorComponent implements OnInit, OnDestroy {
     this.loadComicDetailsForm();
   }
 
-  private getSeriesName() {
+  set seriesName(seriesName: string) {
+    this.comicDetailsForm.controls['seriesName'].setValue(seriesName);
+  }
+
+  get seriesName(): string {
     return this.comicDetailsForm.controls['seriesName'].value;
   }
 
-  private getVolume() {
+  set volume(volume: string) {
+    this.comicDetailsForm.controls['volumeName'].setValue(volume);
+  }
+
+  get volume(): string {
     return this.comicDetailsForm.controls['volumeName'].value;
   }
 
-  private getIssueNumber() {
-    return this.comicDetailsForm.controls['issueNumber'].value;
+  set issueNumber(issueNumber: string) {
+    this.comicDetailsForm.controls['issueNumber'].setValue(issueNumber);
   }
 
-  private getApiKey() {
+  get issueNumber(): string {
+    let result = this.comicDetailsForm.controls['issueNumber'].value;
+    // strip any leading 0s
+    while (
+      !!result &&
+      result.length > 0 &&
+      result !== '0' &&
+      result.startsWith('0')
+    ) {
+      result = result.substring(1);
+    }
+
+    return result;
+  }
+
+  set maxRecords(maxRecords: number) {
+    this.comicDetailsForm.controls['maxRecords'].setValue(maxRecords);
+  }
+
+  get maxRecords(): number {
+    return this.comicDetailsForm.controls['maxRecords'].value;
+  }
+
+  set apiKey(apiKey: string) {
+    this.comicDetailsForm.controls['apiKey'].setValue(apiKey);
+  }
+
+  get apiKey() {
     return this.comicDetailsForm.controls['apiKey'].value;
   }
 
   volumeSelected(volume: ScrapingVolume) {
     this.currentVolume = volume;
     if (!!volume) {
-      this.scrapingAdaptor.getIssue(
-        this.getApiKey(),
-        volume.id,
-        this.getIssueNumber(),
-        this.skipCache
+      this.logger.trace('Fetch scraping issue');
+      this.store.dispatch(
+        getScrapingIssue({
+          apiKey: this.apiKey,
+          volumeId: volume.id,
+          issueNumber: this.issueNumber,
+          skipCache: this.skipCache
+        })
       );
     } else {
       this.currentIssue = null;
@@ -255,20 +351,34 @@ export class ComicDetailsEditorComponent implements OnInit, OnDestroy {
         'comic-details-editor.issue-selected.message'
       ),
       accept: () =>
-        this.scrapingAdaptor.loadMetadata(
-          this.getApiKey(),
-          this.comic.id,
-          `${issue.id}`,
-          this.skipCache
+        this.store.dispatch(
+          scrapeComic({
+            apiKey: this.apiKey,
+            comicId: this.comic.id,
+            issueNumber: `${issue.id}`,
+            skipCache: this.skipCache
+          })
         )
     });
   }
 
   selectionCancelled() {
-    this.scrapingAdaptor.resetVolumes();
+    this.volumes = [];
   }
 
   skipCurrentComic() {
     this.skipComic.next(this.comic);
+  }
+
+  doFetchVolumes() {
+    this.getVolumes(this.skipCache);
+  }
+
+  changedMaxRecords(maxRecords: any) {
+    this.logger.debug('saving maximum scraping records preference');
+    this.authenticationAdaptor.setPreference(
+      USER_PREFERENCE_MAX_SCRAPING_RECORDS,
+      `${maxRecords}`
+    );
   }
 }

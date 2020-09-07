@@ -17,11 +17,7 @@
  */
 
 import { LibraryActions, LibraryActionTypes } from '../actions/library.actions';
-import {
-  deleteComics,
-  mergeComics,
-  mergeReadingLists
-} from 'app/library/library.functions';
+import { mergeComics, mergeReadingLists } from 'app/library/library.functions';
 import { Comic } from 'app/comics';
 import { LastReadDate } from 'app/library/models/last-read-date';
 import { ReadingList } from 'app/comics/models/reading-list';
@@ -41,8 +37,8 @@ export interface LibraryState {
   startingRescan: boolean;
   deletingComics: boolean;
   convertingComics: boolean;
-  consolidating: boolean;
   readingLists: ReadingList[];
+  clearingImageCache: boolean;
 }
 
 export const initialState: LibraryState = {
@@ -58,8 +54,8 @@ export const initialState: LibraryState = {
   startingRescan: false,
   deletingComics: false,
   convertingComics: false,
-  consolidating: false,
-  readingLists: []
+  readingLists: [],
+  clearingImageCache: false
 };
 
 export function reducer(
@@ -118,6 +114,15 @@ export function reducer(
     case LibraryActionTypes.DeleteMultipleComicsFailed:
       return { ...state, deletingComics: false };
 
+    case LibraryActionTypes.UndeleteMultipleComics:
+      return { ...state, deletingComics: true };
+
+    case LibraryActionTypes.MultipleComicsUndeleted:
+      return { ...state, deletingComics: false };
+
+    case LibraryActionTypes.UndeleteMultipleComicsFailed:
+      return { ...state, deletingComics: false };
+
     case LibraryActionTypes.ConvertComics:
       return { ...state, convertingComics: true };
 
@@ -127,16 +132,14 @@ export function reducer(
     case LibraryActionTypes.ConvertComicsFailed:
       return { ...state, convertingComics: false };
 
-    case LibraryActionTypes.Consolidate:
-      return { ...state, consolidating: true };
+    case LibraryActionTypes.ClearImageCache:
+      return { ...state, clearingImageCache: true };
 
-    case LibraryActionTypes.Consolidated: {
-      const comics = deleteComics(state.comics, action.payload.deletedComics);
-      return { ...state, consolidating: false, comics: comics };
-    }
+    case LibraryActionTypes.ImageCacheCleared:
+      return { ...state, clearingImageCache: false };
 
-    case LibraryActionTypes.ConsolidateFailed:
-      return { ...state, consolidating: false };
+    case LibraryActionTypes.ClearImageCacheFailed:
+      return { ...state, clearingImageCache: false };
 
     default:
       return state;

@@ -19,8 +19,9 @@
 import { Component, OnInit } from '@angular/core';
 import { LoggerLevel, LoggerService } from '@angular-ru/logger';
 import { AuthenticationAdaptor, User } from 'app/user';
-import { MenuItem, SelectItem } from 'primeng/api';
+import { ConfirmationService, MenuItem, SelectItem } from 'primeng/api';
 import { LangChangeEvent, TranslateService } from '@ngx-translate/core';
+import { LibraryAdaptor } from 'app/library';
 
 export const USER_PREFERENCE_DEBUGGING = 'user-preference.debugging';
 export const USER_PREFERENCE_LANGUAGE = 'user-preference.language';
@@ -42,7 +43,9 @@ export class NavigationBarComponent implements OnInit {
   constructor(
     public logger: LoggerService,
     private authenticationAdaptor: AuthenticationAdaptor,
-    private translateService: TranslateService
+    private confirmationService: ConfirmationService,
+    private translateService: TranslateService,
+    private libraryAdaptor: LibraryAdaptor
   ) {
     this.logger.trace('creating the navigation bar');
     this.authenticationAdaptor.user$.subscribe(user => (this.user = user));
@@ -145,6 +148,14 @@ export class NavigationBarComponent implements OnInit {
             routerLink: ['/admin/library']
           },
           {
+            label: this.translateService.instant(
+              'main-menu.item.admin.plugins'
+            ),
+            icon: 'fa fa-fw fa-plus-square',
+            visible: this.isAdmin,
+            routerLink: ['/admin/plugins']
+          },
+          {
             label: this.translateService.instant('main-menu.item.admin.import'),
             icon: 'fas fa-file-import',
             routerLink: ['/import'],
@@ -164,6 +175,30 @@ export class NavigationBarComponent implements OnInit {
             ),
             icon: 'fas fa-ghost',
             routerLink: ['/comics/missing'],
+            visible: this.isAdmin
+          },
+          {
+            label: this.translateService.instant(
+              'main-menu.item.admin.task-audit-log'
+            ),
+            icon: 'fa fa-fw fas fa-tasks',
+            routerLink: ['/admin/tasks/logs'],
+            visible: this.isAdmin
+          },
+          {
+            label: this.translateService.instant(
+              'main-menu.item.admin.rest-audit-log'
+            ),
+            icon: 'fa fa-fw fas fa-spider',
+            routerLink: ['/admin/logs/rest'],
+            visible: this.isAdmin
+          },
+          {
+            label: this.translateService.instant(
+              'main-menu.item.admin.clear-image-cache'
+            ),
+            icon: 'fa fa-fw fa-trash',
+            command: () => this.libraryAdaptor.clearImageCache(),
             visible: this.isAdmin
           }
         ]
@@ -190,7 +225,7 @@ export class NavigationBarComponent implements OnInit {
               'main-menu.item.account.logout'
             ),
             icon: 'fa fa-fw fa-sign-in-alt',
-            command: () => this.authenticationAdaptor.startLogout(),
+            command: () => this.logout(),
             visible: this.authenticated
           }
         ]
@@ -262,6 +297,10 @@ export class NavigationBarComponent implements OnInit {
       {
         label: this.translateService.instant('language.option.spanish'),
         value: 'es'
+      },
+      {
+        label: this.translateService.instant('language.option.portuguese'),
+        value: 'pt'
       }
     ];
   }
@@ -276,5 +315,18 @@ export class NavigationBarComponent implements OnInit {
         language
       );
     }
+  }
+
+  logout(): void {
+    this.confirmationService.confirm({
+      header: this.translateService.instant(
+        'global.confirmation.logout.header'
+      ),
+      message: this.translateService.instant(
+        'global.confirmation.logout.message'
+      ),
+      icon: 'fa fa-exclamation',
+      accept: () => this.authenticationAdaptor.startLogout()
+    });
   }
 }

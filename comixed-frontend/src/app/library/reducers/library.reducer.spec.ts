@@ -24,21 +24,24 @@ import {
   COMIC_5
 } from 'app/comics/models/comic.fixtures';
 import {
+  LibraryClearImageCache,
+  LibraryClearImageCacheFailed,
   LibraryComicsConverting,
-  LibraryConsolidate,
-  LibraryConsolidated,
-  LibraryConsolidateFailed,
   LibraryConvertComics,
   LibraryConvertComicsFailed,
   LibraryDeleteMultipleComics,
   LibraryDeleteMultipleComicsFailed,
   LibraryGetUpdates,
   LibraryGetUpdatesFailed,
+  LibraryImageCacheCleared,
   LibraryMultipleComicsDeleted,
+  LibraryMultipleComicsUndeleted,
   LibraryRescanStarted,
   LibraryReset,
   LibraryStartRescan,
   LibraryStartRescanFailed,
+  LibraryUndeleteMultipleComics,
+  LibraryUndeleteMultipleComicsFailed,
   LibraryUpdatesReceived
 } from 'app/library/actions/library.actions';
 import { COMIC_1_LAST_READ_DATE } from 'app/library/models/last-read-date.fixtures';
@@ -60,6 +63,7 @@ describe('Library Reducer', () => {
   const ASCENDING = true;
   const COMIC_COUNT = 2372;
   const LATEST_UPDATED_DATE = new Date();
+  const COMIC_IDS = [1, 2, 3, 4];
 
   let state: LibraryState;
 
@@ -116,12 +120,12 @@ describe('Library Reducer', () => {
       expect(state.convertingComics).toBeFalsy();
     });
 
-    it('clears the consolidating library flag', () => {
-      expect(state.consolidating).toBeFalsy();
-    });
-
     it('has no reading lists', () => {
       expect(state.readingLists).toEqual([]);
+    });
+
+    it('clears the clearing image cache flag', () => {
+      expect(state.clearingImageCache).toBeFalsy();
     });
   });
 
@@ -279,7 +283,7 @@ describe('Library Reducer', () => {
     beforeEach(() => {
       state = reducer(
         { ...state, deletingComics: false },
-        new LibraryDeleteMultipleComics({ ids: [1, 2, 3, 4] })
+        new LibraryDeleteMultipleComics({ ids: COMIC_IDS })
       );
     });
 
@@ -314,6 +318,45 @@ describe('Library Reducer', () => {
     });
   });
 
+  describe('when undeleting multiple comics', () => {
+    beforeEach(() => {
+      state = reducer(
+        { ...state, deletingComics: false },
+        new LibraryUndeleteMultipleComics({ ids: COMIC_IDS })
+      );
+    });
+
+    it('sets the deleting comics flag', () => {
+      expect(state.deletingComics).toBeTruthy();
+    });
+  });
+
+  describe('when multiple comics are undeleted', () => {
+    beforeEach(() => {
+      state = reducer(
+        { ...state, deletingComics: true },
+        new LibraryMultipleComicsUndeleted()
+      );
+    });
+
+    it('clears the deleting multiple comics flag', () => {
+      expect(state.deletingComics).toBeFalsy();
+    });
+  });
+
+  describe('when undeleting multiple comics fails', () => {
+    beforeEach(() => {
+      state = reducer(
+        { ...state, deletingComics: true },
+        new LibraryUndeleteMultipleComicsFailed()
+      );
+    });
+
+    it('clears the deleting multiple comics flag', () => {
+      expect(state.deletingComics).toBeFalsy();
+    });
+  });
+
   describe('when converting comics', () => {
     beforeEach(() => {
       state = reducer(
@@ -321,7 +364,9 @@ describe('Library Reducer', () => {
         new LibraryConvertComics({
           comics: COMICS,
           archiveType: 'CBZ',
-          renamePages: true
+          renamePages: true,
+          deletePages: true,
+          deleteOriginal: true
         })
       );
     });
@@ -357,54 +402,42 @@ describe('Library Reducer', () => {
     });
   });
 
-  describe('when consolidating the library', () => {
+  describe('clearing the image cache', () => {
     beforeEach(() => {
       state = reducer(
-        { ...state, consolidating: false },
-        new LibraryConsolidate({ deletePhysicalFiles: true })
+        { ...state, clearingImageCache: false },
+        new LibraryClearImageCache()
       );
     });
 
-    it('sets the consolidating library flag', () => {
-      expect(state.consolidating).toBeTruthy();
+    it('sets the clearing image cache flag', () => {
+      expect(state.clearingImageCache).toBeTruthy();
     });
   });
 
-  describe('when the library is consolidated', () => {
-    const DELETED_COMICS = [COMICS[2]];
-
+  describe('when the image cache is cleared', () => {
     beforeEach(() => {
       state = reducer(
-        {
-          ...state,
-          consolidating: true,
-          comics: COMICS
-        },
-        new LibraryConsolidated({ deletedComics: DELETED_COMICS })
+        { ...state, clearingImageCache: true },
+        new LibraryImageCacheCleared()
       );
     });
 
-    it('clears the consolidating library flag', () => {
-      expect(state.consolidating).toBeFalsy();
-    });
-
-    it('removes the deleted comics from the state', () => {
-      DELETED_COMICS.forEach(comic =>
-        expect(state.comics).not.toContain(comic)
-      );
+    it('clears the clearing image cache flag', () => {
+      expect(state.clearingImageCache).toBeFalsy();
     });
   });
 
-  describe('when consolidation fails', () => {
+  describe('when the image cache fails to clear', () => {
     beforeEach(() => {
       state = reducer(
-        { ...state, consolidating: true },
-        new LibraryConsolidateFailed()
+        { ...state, clearingImageCache: true },
+        new LibraryClearImageCacheFailed()
       );
     });
 
-    it('clears the consolidating library flag', () => {
-      expect(state.consolidating).toBeFalsy();
+    it('clears the clearing image cache flag', () => {
+      expect(state.clearingImageCache).toBeFalsy();
     });
   });
 });

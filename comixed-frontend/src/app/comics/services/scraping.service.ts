@@ -36,23 +36,40 @@ import { LoggerService } from '@angular-ru/logger';
 export class ScrapingService {
   constructor(private logger: LoggerService, private http: HttpClient) {}
 
+  /**
+   * Fetches scraping volumes.
+   *
+   * @param apiKey the api key
+   * @param series the series name
+   * @param volume the series volume
+   * @param maxRecords the maximum records to return
+   * @param skipCache the skip cache flag
+   */
   getVolumes(
     apiKey: string,
     series: string,
     volume: string,
+    maxRecords: number,
     skipCache: boolean
   ): Observable<any> {
-    this.logger.debug(
-      `[POST] http request: get volumes: apiKey=${apiKey} series=${series} volume=${volume} skipCache=${skipCache}`
-    );
+    this.logger.debug('[POST] http request: get volumes');
     return this.http.post(interpolate(GET_VOLUMES_URL), {
       apiKey: apiKey,
       series: series,
       volume: volume,
+      maxRecords: maxRecords,
       skipCache: skipCache
     } as GetVolumesRequest);
   }
 
+  /**
+   * Fetches a single scraping issue.
+   *
+   * @param apiKey the api key
+   * @param volumeId the scraping volume id
+   * @param issueNumber the issue number
+   * @param skipCache the skip cache flag
+   */
   getIssue(
     apiKey: string,
     volumeId: number,
@@ -72,6 +89,14 @@ export class ScrapingService {
     );
   }
 
+  /**
+   * Scrapes a single comic.
+   *
+   * @param apiKey the api key
+   * @param comicId the comic database id
+   * @param issueId the scraping issue id
+   * @param skipCache the skip cache flag
+   */
   loadMetadata(
     apiKey: string,
     comicId: number,

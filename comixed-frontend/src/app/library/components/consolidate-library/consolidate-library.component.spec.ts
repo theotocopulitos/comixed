@@ -24,34 +24,44 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { TranslateModule } from '@ngx-translate/core';
 import { LoggerModule } from '@angular-ru/logger';
 import { ButtonModule } from 'primeng/button';
-import { AppState, LibraryAdaptor } from 'app/library';
+import { AppState } from 'app/library';
 import { UserModule } from 'app/user/user.module';
 import { Store, StoreModule } from '@ngrx/store';
 import { EffectsModule } from '@ngrx/effects';
-import {
-  LIBRARY_FEATURE_KEY,
-  reducer
-} from 'app/library/reducers/library.reducer';
-import { LibraryEffects } from 'app/library/effects/library.effects';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { Confirmation, ConfirmationService, MessageService } from 'primeng/api';
 import { ComicsModule } from 'app/comics/comics.module';
 import { AuthUserLoaded } from 'app/user/actions/authentication.actions';
 import { AuthenticationAdaptor, USER_ADMIN } from 'app/user';
-import { CONSOLIDATE_DELETE_PHYSICAL_FILES } from 'app/user/models/preferences.constants';
+import {
+  MOVE_COMICS_DELETE_PHYSICAL_FILE,
+  MOVE_COMICS_RENAMING_RULE,
+  MOVE_COMICS_TARGET_DIRECTORY
+} from 'app/user/models/preferences.constants';
 import { RouterTestingModule } from '@angular/router/testing';
+import {
+  MOVE_COMICS_FEATURE_KEY,
+  reducer
+} from 'app/library/reducers/move-comics.reducer';
+import { MoveComicsEffects } from 'app/library/effects/move-comics.effects';
+import { CoreModule } from 'app/core/core.module';
+import { moveComics } from 'app/library/actions/move-comics.actions';
 
 describe('ConsolidateLibraryComponent', () => {
+  const DIRECTORY = '/Users/comixedreader/Documents/comics';
+  const RENAMING_RULE =
+    '$PUBLISHER/$SERIES/$VOLUME/$SERIES v$VOLUME #$ISSUE [$COVERDATE]';
+
   let component: ConsolidateLibraryComponent;
   let fixture: ComponentFixture<ConsolidateLibraryComponent>;
   let confirmationService: ConfirmationService;
-  let libraryAdaptor: LibraryAdaptor;
   let authenticationAdaptor: AuthenticationAdaptor;
   let store: Store<AppState>;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       imports: [
+        CoreModule,
         UserModule,
         ComicsModule,
         RouterTestingModule,
@@ -60,23 +70,23 @@ describe('ConsolidateLibraryComponent', () => {
         ReactiveFormsModule,
         TranslateModule,
         StoreModule.forRoot({}),
-        StoreModule.forFeature(LIBRARY_FEATURE_KEY, reducer),
+        StoreModule.forFeature(MOVE_COMICS_FEATURE_KEY, reducer),
         EffectsModule.forRoot([]),
-        EffectsModule.forFeature([LibraryEffects]),
+        EffectsModule.forFeature([MoveComicsEffects]),
         LoggerModule.forRoot(),
         CheckboxModule,
         ButtonModule
       ],
       declarations: [ConsolidateLibraryComponent],
-      providers: [LibraryAdaptor, MessageService, ConfirmationService]
+      providers: [MessageService, ConfirmationService]
     }).compileComponents();
 
     fixture = TestBed.createComponent(ConsolidateLibraryComponent);
     component = fixture.componentInstance;
     confirmationService = TestBed.get(ConfirmationService);
-    libraryAdaptor = TestBed.get(LibraryAdaptor);
     authenticationAdaptor = TestBed.get(AuthenticationAdaptor);
     store = TestBed.get(Store);
+    spyOn(store, 'dispatch').and.callThrough();
     fixture.detectChanges();
   }));
 
@@ -91,7 +101,7 @@ describe('ConsolidateLibraryComponent', () => {
           user: {
             ...USER_ADMIN,
             preferences: [
-              { name: CONSOLIDATE_DELETE_PHYSICAL_FILES, value: '1' }
+              { name: MOVE_COMICS_DELETE_PHYSICAL_FILE, value: 'true' }
             ]
           }
         })
@@ -107,7 +117,7 @@ describe('ConsolidateLibraryComponent', () => {
           user: {
             ...USER_ADMIN,
             preferences: [
-              { name: CONSOLIDATE_DELETE_PHYSICAL_FILES, value: '0' }
+              { name: MOVE_COMICS_DELETE_PHYSICAL_FILE, value: 'false' }
             ]
           }
         })
@@ -123,7 +133,6 @@ describe('ConsolidateLibraryComponent', () => {
       spyOn(confirmationService, 'confirm').and.callFake(
         (confirm: Confirmation) => confirm.accept()
       );
-      spyOn(libraryAdaptor, 'consolidate');
       spyOn(authenticationAdaptor, 'setPreference');
     });
 
@@ -131,6 +140,12 @@ describe('ConsolidateLibraryComponent', () => {
       beforeEach(() => {
         component.consolidationForm.controls['deletePhysicalFiles'].setValue(
           true
+        );
+        component.consolidationForm.controls['targetDirectory'].setValue(
+          DIRECTORY
+        );
+        component.consolidationForm.controls['renamingRule'].setValue(
+          RENAMING_RULE
         );
         component.consolidateLibrary();
       });
@@ -140,13 +155,33 @@ describe('ConsolidateLibraryComponent', () => {
       });
 
       it('calls the library adaptor', () => {
-        expect(libraryAdaptor.consolidate).toHaveBeenCalledWith(true);
+        expect(store.dispatch).toHaveBeenCalledWith(
+          moveComics({
+            directory: DIRECTORY,
+            renamingRule: RENAMING_RULE,
+            deletePhysicalFiles: true
+          })
+        );
       });
 
       it('saves the delete physical files flag as a preference', () => {
         expect(authenticationAdaptor.setPreference).toHaveBeenCalledWith(
-          CONSOLIDATE_DELETE_PHYSICAL_FILES,
-          '1'
+          MOVE_COMICS_DELETE_PHYSICAL_FILE,
+          'true'
+        );
+      });
+
+      it('saves the delete physical files flag as a preference', () => {
+        expect(authenticationAdaptor.setPreference).toHaveBeenCalledWith(
+          MOVE_COMICS_TARGET_DIRECTORY,
+          DIRECTORY
+        );
+      });
+
+      it('saves the delete physical files flag as a preference', () => {
+        expect(authenticationAdaptor.setPreference).toHaveBeenCalledWith(
+          MOVE_COMICS_RENAMING_RULE,
+          RENAMING_RULE
         );
       });
     });
@@ -156,6 +191,12 @@ describe('ConsolidateLibraryComponent', () => {
         component.consolidationForm.controls['deletePhysicalFiles'].setValue(
           false
         );
+        component.consolidationForm.controls['targetDirectory'].setValue(
+          DIRECTORY
+        );
+        component.consolidationForm.controls['renamingRule'].setValue(
+          RENAMING_RULE
+        );
         component.consolidateLibrary();
       });
 
@@ -164,15 +205,61 @@ describe('ConsolidateLibraryComponent', () => {
       });
 
       it('calls the library adaptor', () => {
-        expect(libraryAdaptor.consolidate).toHaveBeenCalledWith(false);
+        expect(store.dispatch).toHaveBeenCalledWith(
+          moveComics({
+            directory: DIRECTORY,
+            renamingRule: RENAMING_RULE,
+            deletePhysicalFiles: false
+          })
+        );
       });
 
       it('saves the delete physical files flag as a preference', () => {
         expect(authenticationAdaptor.setPreference).toHaveBeenCalledWith(
-          CONSOLIDATE_DELETE_PHYSICAL_FILES,
-          '0'
+          MOVE_COMICS_DELETE_PHYSICAL_FILE,
+          'false'
         );
       });
+
+      it('saves the delete physical files flag as a preference', () => {
+        expect(authenticationAdaptor.setPreference).toHaveBeenCalledWith(
+          MOVE_COMICS_TARGET_DIRECTORY,
+          DIRECTORY
+        );
+      });
+
+      it('saves the delete physical files flag as a preference', () => {
+        expect(authenticationAdaptor.setPreference).toHaveBeenCalledWith(
+          MOVE_COMICS_RENAMING_RULE,
+          RENAMING_RULE
+        );
+      });
+    });
+  });
+
+  describe('choosing to delete physical files', () => {
+    beforeEach(() => {
+      spyOn(confirmationService, 'confirm').and.callFake(
+        (confirm: Confirmation) => confirm.reject()
+      );
+      component.showDeleteFilesWarning(true);
+    });
+
+    it('confirms with the user', () => {
+      expect(confirmationService.confirm).toHaveBeenCalled();
+    });
+  });
+
+  describe('choosing not to delete physical files', () => {
+    beforeEach(() => {
+      spyOn(confirmationService, 'confirm').and.callFake(
+        (confirm: Confirmation) => confirm.reject()
+      );
+      component.showDeleteFilesWarning(false);
+    });
+
+    it('confirms with the user', () => {
+      expect(confirmationService.confirm).not.toHaveBeenCalled();
     });
   });
 });

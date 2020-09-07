@@ -1,4 +1,38 @@
 {
+  "library": {
+    "move-comics": {
+      "title": "Organize Library",
+      "label": {
+        "delete-physical-files": "Delete physical files (WARNING: be sure to backup your library first)",
+        "target-directory": "The new parent directory for the library",
+        "renaming-rule": "The file renaming rule (see notes below)",
+        "variable-name": "Variable Name",
+        "variable-description": "Description"
+      },
+      "button": {
+        "start": "Organize Library"
+      },
+      "warning-text": "Organizing your library cannot be stopped once started.",
+      "effects": {
+        "success-detail": "Library consolidation has started...",
+        "error-detail": "Failed to start library consolidation..."
+      },
+      "variables-note": "The following list shows the variables that can used in the renaming rules.",
+      "variables-example": "$PUBLISHER/$SERIES/$VOLUME/$SERIES v$VOLUME #$ISSUE ($COVERDATE)",
+      "variables-example-note": "This example organizes a library by publisher, series, volume and then a detailed filename. Note you do NOT need to specify the extension: that is added automatically.",
+      "variable": {
+        "PUBLISHER": "The name of the publisher of the comic",
+        "SERIES": "The name of the series of the comic",
+        "VOLUME": "The first year this volume of the comic was published",
+        "ISSUE": "The issue number for this isue",
+        "COVERDATE": "The coverdate for this issue"
+      },
+      "delete-files-warning-header": "Delete Physical Files",
+      "delete-files-warning-message": "Deleting physical files cannot be undone. Are you SURE you want to do this?",
+      "confirmation-header": "Organize Library",
+      "confirmation-message": "Are you sure you want to {deletePhysicalFiles, select, true{delete comic files marked for deletion and} other{}} organizing the library?"
+    }
+  },
   "library-effects": {
     "get-scan-types": {
       "error": {
@@ -56,6 +90,14 @@
         "detail": "Error al eliminar varios cómics."
       }
     },
+    "restore-multiple-comics": {
+      "success": {
+        "detail": "Restores comics."
+      },
+      "error": {
+        "detail": "Failed to restore multiple comics."
+      }
+    },
     "convert-comics": {
       "success": {
         "detail": "Convirtiendo los cómics..."
@@ -64,12 +106,12 @@
         "detail": "Error al convertir los cómics"
       }
     },
-    "consolidate": {
+    "clear-image-cache": {
       "success": {
-        "detail": "Biblioteca consolidada correctamente."
+        "detail": "Image cache {success, select, true{successfully} other{failed to be}} cleared..."
       },
       "error": {
-        "detail": "Error consolidando la biblioteca."
+        "detail": "Error clearing image cache..."
       }
     }
   },
@@ -236,6 +278,7 @@
       "select-all": "Seleccionar todo",
       "deselect-all": "Deseleccionar todo",
       "delete-selected": "Borrar selección...",
+      "restore-selected": "Restore selections...",
       "scrape-selected": "Buscar metadatos de la selección",
       "convert-comic": "Convertir      cómic...",
       "add-to-reading-list": "Añadir a lista...",
@@ -248,6 +291,10 @@
     "delete-comics": {
       "header": "Eliminar {count} cómics",
       "message": "¿Seguro que quieres eliminar estos cómics?"
+    },
+    "restore-comics": {
+      "header": "Restore {count} Comics",
+      "message": "Are you sure you want to restore these comics?"
     },
     "remove-from-reading-list": {
       "header": "Quitar de lista de lectura",
@@ -375,7 +422,9 @@
   "convert-comics-settings": {
     "label": {
       "archive-type": "Tipo de archivo",
-      "rename-pages": "Renombrar páginas"
+      "rename-pages": "Renombrar páginas",
+      "delete-pages": "Remove Deleted And Blocked Pages",
+      "delete-original": "Delete Original Comic"
     },
     "option": {
       "cbz": "CBZ (Zip)",
@@ -397,21 +446,6 @@
       }
     }
   },
-  "consolidate-library": {
-    "label": {
-      "delete-physical-files": "Borrar los archivos físicos de cómics."
-    },
-    "button": {
-      "start": "Comenzar la consolidación"
-    },
-    "confirm": {
-      "header": "Consolidar la biblioteca",
-      "message": "¿Seguro que quieres consolidar la biblitoteca y {deletePhysicalFiles, select, true{borrar} other{no borrar}} los archivos físicos de cómics?"
-    },
-    "text": {
-      "paragraph-1": "Consolidar la biblioteca conlleva la siguiente acción: borrar los archivos físicos de los cómics marcados para eliminación."
-    }
-  },
   "library-admin-page": {
     "title": "ComiXed: Administración de la biblioteca",
     "rescan": {
@@ -431,9 +465,6 @@
       "buttons": {
         "export-library": "Exportar biblioteca"
       }
-    },
-    "consolidate": {
-      "header": "Consolidar archivos de la biblioteca"
     }
   },
   "account-preferences": {
@@ -481,6 +512,36 @@
     "title": "Añadir {count, plural, =1{un cómic} other{# cómics}}) a una lista de lectura",
     "label": {
       "select-reading-list": "Seleccionar una lista de lectura"
+    }
+  },
+  "plugins-page": {
+    "title": "Plugins",
+    "table": {
+      "header": {
+        "name": "Name",
+        "language": "Language",
+        "version": "Version",
+        "author": "Author",
+        "description": "Description"
+      }
+    },
+    "tooltip": {
+      "reload-plugins": "Reload plugins"
+    }
+  },
+  "plugin-effects": {
+    "get-all": {
+      "error": {
+        "detail": "Failed to load plugins..."
+      }
+    },
+    "reload-plugins": {
+      "success": {
+        "detail": "Loaded {count, plural, =1{one plugin} other{# plugins}}..."
+      },
+      "error": {
+        "detail": "Failed to reload plugins..."
+      }
     }
   }
 }

@@ -1,41 +1,44 @@
 {
   "main-menu": {
     "item": {
-      "account": "Account",
       "library": {
-        "root": "Library",
-        "comics": "Comics",
-        "duplicates": "Duplicates",
-        "reading-lists": "Reading Lists"
+        "root": "Bibliothèque",
+        "comics": "Bandes dessinées",
+        "duplicates": "Dupliqués",
+        "reading-lists": "Listes de lecture"
       },
       "collections": {
         "root": "Collections",
-        "publishers": "Publishers",
-        "series": "Series",
-        "characters": "Characters",
-        "teams": "Teams",
-        "locations": "Locations",
-        "story-arcs": "Story Arcs"
+        "publishers": "Éditeurs",
+        "series": "Série",
+        "characters": "Personnages",
+        "teams": "Équipes",
+        "locations": "Localisation",
+        "story-arcs": "Arcs narratifs"
       },
       "account": {
-        "root": "Account",
-        "login": "Login",
-        "logout": "Logout",
-        "details": "Details"
+        "root": "Compte",
+        "login": "Connexion",
+        "logout": "Déconnexion",
+        "details": "Détails"
       },
       "admin": {
-        "root": "Admin",
-        "users": "Users",
-        "library": "Library",
-        "import": "Import",
-        "duplicate-pages": "Duplicate Pages",
-        "missing-comics": "Missing Comics"
+        "root": "Administrateur",
+        "users": "Utilisateurs",
+        "library": "Bibliothèque",
+        "plugins": "Plugins",
+        "import": "Importer",
+        "duplicate-pages": "Pages dupliquées",
+        "missing-comics": "Bandes dessinées manquantes",
+        "task-audit-log": "Task Logs",
+        "rest-audit-log": "Web Logs",
+        "clear-image-cache": "Vider le cache des images"
       },
       "help": {
-        "root": "Help",
-        "build-details": "Build Details",
-        "enable-debugging": "Enable Debugging",
-        "disable-debugging": "Disable Debugging"
+        "root": "Aide",
+        "build-details": "Détails du Build",
+        "enable-debugging": "Activer le débogage",
+        "disable-debugging": "Désactiver le débogage"
       }
     },
     "button": {

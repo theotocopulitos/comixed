@@ -44,13 +44,17 @@ import { LoggerModule } from '@angular-ru/logger';
 import { MessageService } from 'primeng/api';
 import * as LibraryActions from '../actions/library.actions';
 import {
+  LibraryClearImageCache,
+  LibraryClearImageCacheFailed,
   LibraryComicsConverting,
-  LibraryConsolidate,
-  LibraryConsolidated,
-  LibraryConsolidateFailed,
   LibraryConvertComics,
   LibraryConvertComicsFailed,
+  LibraryDeleteMultipleComicsFailed,
   LibraryGetUpdates,
+  LibraryImageCacheCleared,
+  LibraryMultipleComicsDeleted,
+  LibraryMultipleComicsUndeleted,
+  LibraryUndeleteMultipleComicsFailed,
   LibraryUpdatesReceived
 } from '../actions/library.actions';
 import { LibraryAdaptor } from './library.adaptor';
@@ -72,7 +76,9 @@ describe('LibraryAdaptor', () => {
   const IDS = [7, 17, 65, 1, 29, 71];
   const ARCHIVE_TYPE = 'CBZ';
   const RENAME_PAGES = true;
+  const DELETE_PAGES = false;
   const READING_LISTS = [READING_LIST_1, READING_LIST_2];
+  const DELETE_ORIGINAL_COMIC = Math.random() * 100 > 50;
 
   let adaptor: LibraryAdaptor;
   let store: Store<AppState>;
@@ -260,16 +266,87 @@ describe('LibraryAdaptor', () => {
     );
   });
 
-  it('fires an action when deleting multiple comics', () => {
-    adaptor.deleteComics(IDS);
-    expect(store.dispatch).toHaveBeenCalledWith(
-      new LibraryActions.LibraryDeleteMultipleComics({ ids: IDS })
-    );
+  describe('deleting multiple comics', () => {
+    beforeEach(() => {
+      adaptor.deleteComics(IDS);
+    });
+
+    it('fires an action', () => {
+      expect(store.dispatch).toHaveBeenCalledWith(
+        new LibraryActions.LibraryDeleteMultipleComics({ ids: IDS })
+      );
+    });
+
+    it('provides updates', () => {
+      adaptor.deleting$.subscribe(response => expect(response).toBeTruthy());
+    });
+
+    describe('success', () => {
+      beforeEach(() => {
+        store.dispatch(new LibraryMultipleComicsDeleted({ count: 17 }));
+      });
+
+      it('provides updates', () => {
+        adaptor.deleting$.subscribe(response => expect(response).toBeFalsy());
+      });
+    });
+
+    describe('failure', () => {
+      beforeEach(() => {
+        store.dispatch(new LibraryDeleteMultipleComicsFailed());
+      });
+
+      it('provides updates', () => {
+        adaptor.deleting$.subscribe(response => expect(response).toBeFalsy());
+      });
+    });
+  });
+
+  describe('undeleting multiple comics', () => {
+    beforeEach(() => {
+      adaptor.undeleteComics(IDS);
+    });
+
+    it('fires an action', () => {
+      expect(store.dispatch).toHaveBeenCalledWith(
+        new LibraryActions.LibraryUndeleteMultipleComics({ ids: IDS })
+      );
+    });
+
+    it('provides updates', () => {
+      adaptor.deleting$.subscribe(response => expect(response).toBeTruthy());
+    });
+
+    describe('success', () => {
+      beforeEach(() => {
+        store.dispatch(new LibraryMultipleComicsUndeleted());
+      });
+
+      it('provides updates', () => {
+        adaptor.deleting$.subscribe(response => expect(response).toBeFalsy());
+      });
+    });
+
+    describe('failure', () => {
+      beforeEach(() => {
+        store.dispatch(new LibraryUndeleteMultipleComicsFailed());
+      });
+
+      it('provides updates', () => {
+        adaptor.deleting$.subscribe(response => expect(response).toBeFalsy());
+      });
+    });
   });
 
   describe('converting comics', () => {
     beforeEach(() => {
-      adaptor.convertComics(COMICS, ARCHIVE_TYPE, RENAME_PAGES);
+      adaptor.convertComics(
+        COMICS,
+        ARCHIVE_TYPE,
+        RENAME_PAGES,
+        DELETE_PAGES,
+        DELETE_ORIGINAL_COMIC
+      );
     });
 
     it('fires an action', () => {
@@ -277,7 +354,9 @@ describe('LibraryAdaptor', () => {
         new LibraryConvertComics({
           comics: COMICS,
           archiveType: ARCHIVE_TYPE,
-          renamePages: RENAME_PAGES
+          renamePages: RENAME_PAGES,
+          deletePages: DELETE_PAGES,
+          deleteOriginal: DELETE_ORIGINAL_COMIC
         })
       );
     });
@@ -307,66 +386,40 @@ describe('LibraryAdaptor', () => {
     });
   });
 
-  describe('consolidating the library', () => {
+  describe('clearing the image cache', () => {
     beforeEach(() => {
-      adaptor.consolidate(true);
+      adaptor.clearImageCache();
     });
 
     it('fires an action', () => {
-      expect(store.dispatch).toHaveBeenCalledWith(
-        new LibraryConsolidate({ deletePhysicalFiles: true })
-      );
+      expect(store.dispatch).toHaveBeenCalledWith(new LibraryClearImageCache());
     });
 
-    it('provides updates on consolidating', () => {
-      adaptor.consolidating$.subscribe(response =>
+    it('provides updates on clearing the image cache', () => {
+      adaptor.clearingImageCache$.subscribe(response =>
         expect(response).toBeTruthy()
       );
     });
 
     describe('success', () => {
-      const DELETED_COMICS = [COMICS[2]];
-
       beforeEach(() => {
-        // preload the library
-        store.dispatch(
-          new LibraryUpdatesReceived({
-            lastComicId: LAST_COMIC_ID,
-            mostRecentUpdate: MOST_RECENT_UPDATE,
-            moreUpdates: MORE_UPDATES,
-            processingCount: PROCESSING_COUNT,
-            comics: COMICS,
-            lastReadDates: [],
-            readingLists: []
-          })
-        );
-        store.dispatch(
-          new LibraryConsolidated({ deletedComics: DELETED_COMICS })
-        );
+        store.dispatch(new LibraryImageCacheCleared());
       });
 
-      it('provides updates on consolidating', () => {
-        adaptor.consolidating$.subscribe(response =>
+      it('provides updates on clearing the image cache', () => {
+        adaptor.clearingImageCache$.subscribe(response =>
           expect(response).toBeFalsy()
         );
-      });
-
-      it('provides updates on comics', () => {
-        DELETED_COMICS.forEach(comic => {
-          adaptor.comic$.subscribe(comics =>
-            expect(comics).not.toContain(comic)
-          );
-        });
       });
     });
 
     describe('failure', () => {
       beforeEach(() => {
-        store.dispatch(new LibraryConsolidateFailed());
+        store.dispatch(new LibraryClearImageCacheFailed());
       });
 
-      it('provides updates on consolidating', () => {
-        adaptor.consolidating$.subscribe(response =>
+      it('provides updates on clearing the image cache', () => {
+        adaptor.clearingImageCache$.subscribe(response =>
           expect(response).toBeFalsy()
         );
       });

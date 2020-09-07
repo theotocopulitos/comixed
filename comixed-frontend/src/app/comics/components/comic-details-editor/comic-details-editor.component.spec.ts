@@ -26,7 +26,6 @@ import { Store, StoreModule } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { AppState } from 'app/comics';
 import { ComicAdaptor } from 'app/comics/adaptors/comic.adaptor';
-import { ScrapingAdaptor } from 'app/comics/adaptors/scraping.adaptor';
 import {
   COMIC_1,
   SCRAPING_ISSUE_1000,
@@ -45,6 +44,7 @@ import {
   CardModule,
   Confirmation,
   ConfirmationService,
+  DropdownModule,
   InplaceModule,
   MessageService,
   ProgressBarModule,
@@ -54,17 +54,34 @@ import {
 } from 'primeng/primeng';
 import { TableModule } from 'primeng/table';
 import { ComicDetailsEditorComponent } from './comic-details-editor.component';
+import { USER_PREFERENCE_SKIP_CACHE } from 'app/user/user.constants';
+import { getScrapingVolumes } from 'app/comics/actions/scraping-volumes.actions';
+import { getScrapingIssue } from 'app/comics/actions/scraping-issue.actions';
+import { scrapeComic } from 'app/comics/actions/scrape-comic.actions';
+import * as fromScrapingIssue from 'app/comics/reducers/scraping-issue.reducer';
+import { SCRAPING_ISSUE_FEATURE_KEY } from 'app/comics/reducers/scraping-issue.reducer';
+import * as fromScrapeComic from 'app/comics/reducers/scrape-comic.reducer';
+import { SCRAPE_COMIC_FEATURE_KEY } from 'app/comics/reducers/scrape-comic.reducer';
+import * as fromScrapeMultipleComics from 'app/comics/reducers/scrape-multiple-comic.reducer';
+import { SCRAPE_MULTIPLE_COMICS_STATE } from 'app/comics/reducers/scrape-multiple-comic.reducer';
+import * as fromScrapingVolumes from 'app/comics/reducers/scraping-volumes.reducer';
+import { SCRAPING_VOLUMES_FEATURE_KEY } from 'app/comics/reducers/scraping-volumes.reducer';
+import { ScrapingVolumesEffects } from 'app/comics/effects/scraping-volumes.effects';
+import { ScrapingIssueEffects } from 'app/comics/effects/scraping-issue.effects';
+import { ScrapeComicEffects } from 'app/comics/effects/scrape-comic.effects';
 
 describe('ComicDetailsEditorComponent', () => {
   const API_KEY = 'ABCDEF0123456789';
   const COMIC = COMIC_1;
   const VOLUME = SCRAPING_VOLUME_1000;
   const ISSUE = SCRAPING_ISSUE_1000;
+  const SERIES = 'Series name';
+  const ISSUE_NUMBER = '717';
+  const MAX_RECORDS = 100;
 
   let component: ComicDetailsEditorComponent;
   let fixture: ComponentFixture<ComicDetailsEditorComponent>;
   let store: Store<AppState>;
-  let scrapingAdaptor: ScrapingAdaptor;
   let authenticationAdaptor: AuthenticationAdaptor;
   let translateService: TranslateService;
   let comicAdaptor: ComicAdaptor;
@@ -83,8 +100,29 @@ describe('ComicDetailsEditorComponent', () => {
         LoggerModule.forRoot(),
         StoreModule.forRoot({}),
         StoreModule.forFeature(COMIC_FEATURE_KEY, reducer),
+        StoreModule.forFeature(
+          SCRAPING_VOLUMES_FEATURE_KEY,
+          fromScrapingVolumes.reducer
+        ),
+        StoreModule.forFeature(
+          SCRAPING_ISSUE_FEATURE_KEY,
+          fromScrapingIssue.reducer
+        ),
+        StoreModule.forFeature(
+          SCRAPE_COMIC_FEATURE_KEY,
+          fromScrapeComic.reducer
+        ),
+        StoreModule.forFeature(
+          SCRAPE_MULTIPLE_COMICS_STATE,
+          fromScrapeMultipleComics.reducer
+        ),
         EffectsModule.forRoot([]),
-        EffectsModule.forFeature([ComicEffects]),
+        EffectsModule.forFeature([
+          ComicEffects,
+          ScrapingVolumesEffects,
+          ScrapingIssueEffects,
+          ScrapeComicEffects
+        ]),
         BlockUIModule,
         ProgressBarModule,
         TooltipModule,
@@ -92,7 +130,8 @@ describe('ComicDetailsEditorComponent', () => {
         SplitButtonModule,
         TableModule,
         CardModule,
-        ToolbarModule
+        ToolbarModule,
+        DropdownModule
       ],
       declarations: [
         ComicDetailsEditorComponent,
@@ -100,19 +139,16 @@ describe('ComicDetailsEditorComponent', () => {
         ScrapingIssueTitlePipe,
         ScrapingIssueCoverUrlPipe
       ],
-      providers: [
-        ComicAdaptor,
-        ScrapingAdaptor,
-        MessageService,
-        ConfirmationService
-      ]
+      providers: [ComicAdaptor, MessageService, ConfirmationService]
     }).compileComponents();
 
     fixture = TestBed.createComponent(ComicDetailsEditorComponent);
     component = fixture.componentInstance;
     store = TestBed.get(Store);
-    scrapingAdaptor = TestBed.get(ScrapingAdaptor);
+    spyOn(store, 'dispatch').and.callThrough();
     authenticationAdaptor = TestBed.get(AuthenticationAdaptor);
+    spyOn(authenticationAdaptor, 'setPreference');
+    spyOn(authenticationAdaptor, 'getPreference');
     translateService = TestBed.get(TranslateService);
     comicAdaptor = TestBed.get(ComicAdaptor);
     confirmationService = TestBed.get(ConfirmationService);
@@ -126,6 +162,7 @@ describe('ComicDetailsEditorComponent', () => {
 
   describe('the fetch options', () => {
     it('loads them by default', () => {
+      component.maxRecords = MAX_RECORDS;
       expect(component.fetchOptions).not.toEqual([]);
     });
   });
@@ -135,7 +172,6 @@ describe('ComicDetailsEditorComponent', () => {
       component.fetchOptions = [];
       component.comic = COMIC;
       component.comicDetailsForm.controls['apiKey'].setValue(API_KEY);
-      spyOn(scrapingAdaptor, 'getVolumes');
       translateService.use('fr');
     });
 
@@ -144,32 +180,40 @@ describe('ComicDetailsEditorComponent', () => {
     });
 
     it('contains an option to fetch volumes without skipping the cache', () => {
+      component.skipCache = false;
       component.fetchOptions
         .find(
           option =>
-            option.label === 'comic-details-editor.option.fetch-with-cache'
+            option.label === 'comic-details-editor.option.fetch.with-cache'
         )
         .command();
-      expect(scrapingAdaptor.getVolumes).toHaveBeenCalledWith(
-        API_KEY,
-        COMIC.series,
-        COMIC.issueNumber,
-        false
+      expect(store.dispatch).toHaveBeenCalledWith(
+        getScrapingVolumes({
+          apiKey: API_KEY,
+          volume: COMIC.volume,
+          series: COMIC.series,
+          maxRecords: component.maxRecords,
+          skipCache: false
+        })
       );
     });
 
     it('contains an option to fetch volumes while skipping the cache', () => {
+      component.skipCache = true;
       component.fetchOptions
         .find(
           option =>
-            option.label === 'comic-details-editor.option.fetch-skip-cache'
+            option.label === 'comic-details-editor.option.fetch.skip-cache'
         )
         .command();
-      expect(scrapingAdaptor.getVolumes).toHaveBeenCalledWith(
-        API_KEY,
-        COMIC.series,
-        COMIC.issueNumber,
-        true
+      expect(store.dispatch).toHaveBeenCalledWith(
+        getScrapingVolumes({
+          apiKey: API_KEY,
+          volume: COMIC.volume,
+          series: COMIC.series,
+          maxRecords: component.maxRecords,
+          skipCache: true
+        })
       );
     });
   });
@@ -177,7 +221,6 @@ describe('ComicDetailsEditorComponent', () => {
   describe('setting the comic', () => {
     describe('while in single-comic mode', () => {
       beforeEach(() => {
-        spyOn(scrapingAdaptor, 'startScraping');
         component.multiComicMode = false;
         component.comicDetailsForm.controls['seriesName'].setValue('');
         component.comicDetailsForm.controls['volumeName'].setValue('');
@@ -205,10 +248,6 @@ describe('ComicDetailsEditorComponent', () => {
         expect(
           component.comicDetailsForm.controls['issueNumber'].value
         ).toEqual(COMIC.issueNumber);
-      });
-
-      it('starts the scraping process', () => {
-        expect(scrapingAdaptor.startScraping).toHaveBeenCalledWith([COMIC]);
       });
     });
 
@@ -248,7 +287,6 @@ describe('ComicDetailsEditorComponent', () => {
   describe('saving the API key', () => {
     beforeEach(() => {
       component.comicDetailsForm.controls['apiKey'].setValue(API_KEY);
-      spyOn(authenticationAdaptor, 'setPreference');
       component.saveApiKey();
     });
 
@@ -262,7 +300,6 @@ describe('ComicDetailsEditorComponent', () => {
 
   describe('resetting the API key', () => {
     beforeEach(() => {
-      spyOn(authenticationAdaptor, 'getPreference');
       component.editingApiKey = true;
       component.resetApiKey();
     });
@@ -343,7 +380,6 @@ describe('ComicDetailsEditorComponent', () => {
     beforeEach(() => {
       component.comic = COMIC;
       component.comicDetailsForm.controls['apiKey'].setValue(API_KEY);
-      spyOn(scrapingAdaptor, 'getIssue');
     });
 
     describe('while not skipping the cache', () => {
@@ -357,11 +393,13 @@ describe('ComicDetailsEditorComponent', () => {
       });
 
       it('gets the issue for the volume', () => {
-        expect(scrapingAdaptor.getIssue).toHaveBeenCalledWith(
-          API_KEY,
-          VOLUME.id,
-          COMIC.issueNumber,
-          false
+        expect(store.dispatch).toHaveBeenCalledWith(
+          getScrapingIssue({
+            apiKey: API_KEY,
+            volumeId: VOLUME.id,
+            issueNumber: COMIC.issueNumber,
+            skipCache: false
+          })
         );
       });
     });
@@ -377,11 +415,13 @@ describe('ComicDetailsEditorComponent', () => {
       });
 
       it('gets the issue for the volume', () => {
-        expect(scrapingAdaptor.getIssue).toHaveBeenCalledWith(
-          API_KEY,
-          VOLUME.id,
-          COMIC.issueNumber,
-          true
+        expect(store.dispatch).toHaveBeenCalledWith(
+          getScrapingIssue({
+            apiKey: API_KEY,
+            volumeId: VOLUME.id,
+            issueNumber: COMIC.issueNumber,
+            skipCache: true
+          })
         );
       });
     });
@@ -403,7 +443,6 @@ describe('ComicDetailsEditorComponent', () => {
       component.comic = COMIC;
       component.currentVolume = VOLUME;
       component.comicDetailsForm.controls['apiKey'].setValue(API_KEY);
-      spyOn(scrapingAdaptor, 'loadMetadata');
       spyOn(confirmationService, 'confirm').and.callFake(
         (confirmation: Confirmation) => confirmation.accept()
       );
@@ -415,12 +454,14 @@ describe('ComicDetailsEditorComponent', () => {
         component.issueSelected(ISSUE);
       });
 
-      it('calls the scraping adaptor load metadata method', () => {
-        expect(scrapingAdaptor.loadMetadata).toHaveBeenCalledWith(
-          API_KEY,
-          COMIC.id,
-          `${ISSUE.id}`,
-          false
+      it('fires an action', () => {
+        expect(store.dispatch).toHaveBeenCalledWith(
+          scrapeComic({
+            apiKey: API_KEY,
+            comicId: COMIC.id,
+            issueNumber: `${ISSUE.id}`,
+            skipCache: false
+          })
         );
       });
     });
@@ -431,12 +472,14 @@ describe('ComicDetailsEditorComponent', () => {
         component.issueSelected(ISSUE);
       });
 
-      it('calls the scraping adaptor load metadata method', () => {
-        expect(scrapingAdaptor.loadMetadata).toHaveBeenCalledWith(
-          API_KEY,
-          COMIC.id,
-          `${ISSUE.id}`,
-          true
+      it('fires an action', () => {
+        expect(store.dispatch).toHaveBeenCalledWith(
+          scrapeComic({
+            apiKey: API_KEY,
+            comicId: COMIC.id,
+            issueNumber: `${ISSUE.id}`,
+            skipCache: true
+          })
         );
       });
     });
@@ -444,12 +487,11 @@ describe('ComicDetailsEditorComponent', () => {
 
   describe('cancelling the selection', () => {
     beforeEach(() => {
-      spyOn(scrapingAdaptor, 'resetVolumes');
       component.selectionCancelled();
     });
 
     it('resets the volumes list', () => {
-      expect(scrapingAdaptor.resetVolumes).toHaveBeenCalled();
+      expect(component.volumes).toEqual([]);
     });
   });
 
@@ -464,5 +506,66 @@ describe('ComicDetailsEditorComponent', () => {
         expect(response).toEqual(COMIC)
       );
     });
+  });
+
+  describe('fetching volumes', () => {
+    beforeEach(() => {
+      component.apiKey = API_KEY;
+      component.comic = COMIC;
+      component.maxRecords = MAX_RECORDS;
+    });
+
+    describe('skipping the cache', () => {
+      beforeEach(() => {
+        component.skipCache = true;
+        component.doFetchVolumes();
+      });
+
+      it('fires an action', () => {
+        expect(store.dispatch).toHaveBeenCalledWith(
+          getScrapingVolumes({
+            apiKey: API_KEY,
+            series: COMIC.series,
+            volume: COMIC.volume,
+            maxRecords: MAX_RECORDS,
+            skipCache: true
+          })
+        );
+      });
+    });
+
+    describe('using the cache', () => {
+      beforeEach(() => {
+        component.skipCache = false;
+        component.doFetchVolumes();
+      });
+
+      it('fireds an action', () => {
+        expect(store.dispatch).toHaveBeenCalledWith(
+          getScrapingVolumes({
+            apiKey: API_KEY,
+            series: COMIC.series,
+            volume: COMIC.volume,
+            maxRecords: MAX_RECORDS,
+            skipCache: false
+          })
+        );
+      });
+    });
+  });
+
+  it('saves the skip cache preference if it is changed', () => {
+    component.skipCache = false;
+    component.getVolumes(!component.skipCache);
+    expect(authenticationAdaptor.setPreference).toHaveBeenCalledWith(
+      USER_PREFERENCE_SKIP_CACHE,
+      `${!component.skipCache}`
+    );
+  });
+
+  it('does not save the skip cache preference if it is not changed', () => {
+    component.skipCache = false;
+    component.getVolumes(component.skipCache);
+    expect(authenticationAdaptor.setPreference).not.toHaveBeenCalled();
   });
 });

@@ -22,20 +22,23 @@ import { provideMockActions } from '@ngrx/effects/testing';
 import { TranslateModule } from '@ngx-translate/core';
 import { COMIC_1, COMIC_3, COMIC_5 } from 'app/comics/models/comic.fixtures';
 import {
+  LibraryClearImageCache,
+  LibraryClearImageCacheFailed,
   LibraryComicsConverting,
-  LibraryConsolidate,
-  LibraryConsolidated,
-  LibraryConsolidateFailed,
   LibraryConvertComics,
   LibraryConvertComicsFailed,
   LibraryDeleteMultipleComics,
   LibraryDeleteMultipleComicsFailed,
   LibraryGetUpdates,
   LibraryGetUpdatesFailed,
+  LibraryImageCacheCleared,
   LibraryMultipleComicsDeleted,
+  LibraryMultipleComicsUndeleted,
   LibraryRescanStarted,
   LibraryStartRescan,
   LibraryStartRescanFailed,
+  LibraryUndeleteMultipleComics,
+  LibraryUndeleteMultipleComicsFailed,
   LibraryUpdatesReceived
 } from 'app/library/actions/library.actions';
 import { COMIC_1_LAST_READ_DATE } from 'app/library/models/last-read-date.fixtures';
@@ -48,6 +51,8 @@ import { LoggerModule } from '@angular-ru/logger';
 import { MessageService } from 'primeng/api';
 import { Observable, of, throwError } from 'rxjs';
 import { LibraryEffects } from './library.effects';
+import { ClearImageCacheResponse } from 'app/library/models/net/clear-image-cache-response';
+import { UndeleteMultipleComicsResponse } from 'app/library/models/net/undelete-multiple-comics-response';
 import objectContaining = jasmine.objectContaining;
 
 describe('LibraryEffects', () => {
@@ -80,8 +85,13 @@ describe('LibraryEffects', () => {
             deleteMultipleComics: jasmine.createSpy(
               'LibraryService.deleteMultipleComics()'
             ),
+            undeleteMultipleComics: jasmine.createSpy(
+              'LibraryService.undeleteMultipleComics()'
+            ),
             convertComics: jasmine.createSpy('LibraryService.convertComics()'),
-            consolidate: jasmine.createSpy('LibraryService.consolidate()')
+            clearImageCache: jasmine.createSpy(
+              'LibraryService.clearImageCache()'
+            )
           }
         },
         MessageService
@@ -279,13 +289,73 @@ describe('LibraryEffects', () => {
     });
   });
 
+  describe('when undeleting multiple comics', () => {
+    it('fires an action on success', () => {
+      const serviceResponse = {
+        success: true
+      } as UndeleteMultipleComicsResponse;
+      const action = new LibraryUndeleteMultipleComics({
+        ids: [7, 17, 65]
+      });
+      const outcome = new LibraryMultipleComicsUndeleted();
+
+      actions$ = hot('-a', { a: action });
+      libraryService.undeleteMultipleComics.and.returnValue(
+        of(serviceResponse)
+      );
+
+      const expected = hot('-b', { b: outcome });
+      expect(effects.undeleteMultipleComics$).toBeObservable(expected);
+      expect(messageService.add).toHaveBeenCalledWith(
+        objectContaining({ severity: 'info' })
+      );
+    });
+
+    it('fires an action on service failure', () => {
+      const serviceResponse = new HttpErrorResponse({});
+      const action = new LibraryUndeleteMultipleComics({
+        ids: [7, 17, 65]
+      });
+      const outcome = new LibraryUndeleteMultipleComicsFailed();
+
+      actions$ = hot('-a', { a: action });
+      libraryService.undeleteMultipleComics.and.returnValue(
+        throwError(serviceResponse)
+      );
+
+      const expected = hot('-b', { b: outcome });
+      expect(effects.undeleteMultipleComics$).toBeObservable(expected);
+      expect(messageService.add).toHaveBeenCalledWith(
+        objectContaining({ severity: 'error' })
+      );
+    });
+
+    it('fires an action on general failure', () => {
+      const action = new LibraryUndeleteMultipleComics({
+        ids: [7, 17, 65]
+      });
+      const outcome = new LibraryUndeleteMultipleComicsFailed();
+
+      actions$ = hot('-a', { a: action });
+      libraryService.undeleteMultipleComics.and.throwError('expected');
+
+      const expected = hot('-(b|)', { b: outcome });
+      expect(effects.undeleteMultipleComics$).toBeObservable(expected);
+      expect(messageService.add).toHaveBeenCalledWith(
+        objectContaining({ severity: 'error' })
+      );
+    });
+  });
+
   describe('converting comics', () => {
     it('fires an action on success', () => {
       const serviceResponse = new HttpResponse({});
       const action = new LibraryConvertComics({
         comics: COMICS,
         archiveType: 'CBZ',
-        renamePages: true
+        renamePages: true,
+        deletePages: true,
+        deleteOriginal: true
       });
       const outcome = new LibraryComicsConverting();
 
@@ -304,7 +374,9 @@ describe('LibraryEffects', () => {
       const action = new LibraryConvertComics({
         comics: COMICS,
         archiveType: 'CBZ',
-        renamePages: true
+        renamePages: true,
+        deletePages: true,
+        deleteOriginal: true
       });
       const outcome = new LibraryConvertComicsFailed();
 
@@ -322,7 +394,9 @@ describe('LibraryEffects', () => {
       const action = new LibraryConvertComics({
         comics: COMICS,
         archiveType: 'CBZ',
-        renamePages: true
+        renamePages: true,
+        deletePages: true,
+        deleteOriginal: true
       });
       const outcome = new LibraryConvertComicsFailed();
 
@@ -338,16 +412,31 @@ describe('LibraryEffects', () => {
   });
 
   describe('consolidating the library', () => {
-    it('fires an action on success', () => {
-      const serviceResponse = COMICS;
-      const action = new LibraryConsolidate({ deletePhysicalFiles: true });
-      const outcome = new LibraryConsolidated({ deletedComics: COMICS });
+    it('fires an action on successful clearing', () => {
+      const serviceResponse = { success: true } as ClearImageCacheResponse;
+      const action = new LibraryClearImageCache();
+      const outcome = new LibraryImageCacheCleared();
 
       actions$ = hot('-a', { a: action });
-      libraryService.consolidate.and.returnValue(of(serviceResponse));
+      libraryService.clearImageCache.and.returnValue(of(serviceResponse));
 
       const expected = hot('-b', { b: outcome });
-      expect(effects.consolidate$).toBeObservable(expected);
+      expect(effects.clearImageCache$).toBeObservable(expected);
+      expect(messageService.add).toHaveBeenCalledWith(
+        objectContaining({ severity: 'info' })
+      );
+    });
+
+    it('fires an action on failed clearing', () => {
+      const serviceResponse = { success: false } as ClearImageCacheResponse;
+      const action = new LibraryClearImageCache();
+      const outcome = new LibraryClearImageCacheFailed();
+
+      actions$ = hot('-a', { a: action });
+      libraryService.clearImageCache.and.returnValue(of(serviceResponse));
+
+      const expected = hot('-b', { b: outcome });
+      expect(effects.clearImageCache$).toBeObservable(expected);
       expect(messageService.add).toHaveBeenCalledWith(
         objectContaining({ severity: 'info' })
       );
@@ -355,28 +444,30 @@ describe('LibraryEffects', () => {
 
     it('fires an action on service failure', () => {
       const serviceResponse = new HttpErrorResponse({});
-      const action = new LibraryConsolidate({ deletePhysicalFiles: true });
-      const outcome = new LibraryConsolidateFailed();
+      const action = new LibraryClearImageCache();
+      const outcome = new LibraryClearImageCacheFailed();
 
       actions$ = hot('-a', { a: action });
-      libraryService.consolidate.and.returnValue(throwError(serviceResponse));
+      libraryService.clearImageCache.and.returnValue(
+        throwError(serviceResponse)
+      );
 
       const expected = hot('-b', { b: outcome });
-      expect(effects.consolidate$).toBeObservable(expected);
+      expect(effects.clearImageCache$).toBeObservable(expected);
       expect(messageService.add).toHaveBeenCalledWith(
         objectContaining({ severity: 'error' })
       );
     });
 
     it('fires an action on general failure', () => {
-      const action = new LibraryConsolidate({ deletePhysicalFiles: true });
-      const outcome = new LibraryConsolidateFailed();
+      const action = new LibraryClearImageCache();
+      const outcome = new LibraryClearImageCacheFailed();
 
       actions$ = hot('-a', { a: action });
-      libraryService.consolidate.and.throwError('expected');
+      libraryService.clearImageCache.and.throwError('expected');
 
       const expected = hot('-(b|)', { b: outcome });
-      expect(effects.consolidate$).toBeObservable(expected);
+      expect(effects.clearImageCache$).toBeObservable(expected);
       expect(messageService.add).toHaveBeenCalledWith(
         objectContaining({ severity: 'error' })
       );

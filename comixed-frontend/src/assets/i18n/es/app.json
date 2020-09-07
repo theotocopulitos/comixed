@@ -28,19 +28,16 @@
     "option": {
       "english": "Inglés",
       "french": "Francés",
-      "spanish": "Español"
-    }
-  },
-  "navigation-bar": {
-    "text": {
-      "logged-in-as": "Has ingresado como: {email}"
+      "spanish": "Español",
+      "portuguese": "Portuguese"
     }
   },
   "main-page": {
     "text": {
       "please-login": "Por favor, ingresa para ver la biblioteca.",
       "library-status": "Hay {comic_count} cómics en la biblioteca."
-    }
+    },
+    "title": "ComiXed"
   },
   "iconbar": {
     "home": "Principal",
@@ -166,9 +163,6 @@
       "details": "Detalles",
       "preferences": "Preferencias"
     }
-  },
-  "users-page": {
-    "title": "ComiXed: Gestionar cuentas de usuario"
   },
   "comic-list": {
     "label": {
@@ -412,10 +406,13 @@
       "admin": {
         "root": "Admin",
         "library-admin": "Biblioteca",
+        "plugins-page": "Plugins",
         "users-admin": "Usuarios",
         "import-page": "Importar cómics",
         "duplicates-page": "Páginas duplicadas",
-        "missing-comics": "Cómics no encontrados"
+        "missing-comics": "Cómics no encontrados",
+        "task-audit-log": "Task Log",
+        "rest-audit-log": "REST logs"
       }
     }
   },
@@ -431,6 +428,12 @@
     "tooltip": {
       "unprocessed-comic": "Este cómic está en cola para procesamiento.",
       "deleted-comic": "Este cómic está marcado para eliminación."
+    },
+    "confirmation": {
+      "logout": {
+        "header": "Desconexión",
+        "message": "¿Estás seguro de que quieres desconectar?"
+      }
     }
   },
   "toolbar": {

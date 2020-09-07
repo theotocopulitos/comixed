@@ -39,6 +39,8 @@ import { EffectsModule } from '@ngrx/effects';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { AuthenticationAdaptor, USER_READER } from 'app/user';
+import { LibraryModule } from 'app/library/library.module';
+import { Confirmation, ConfirmationService } from 'primeng/api';
 
 describe('NavigationBarComponent', () => {
   const USER = USER_READER;
@@ -47,11 +49,13 @@ describe('NavigationBarComponent', () => {
   let fixture: ComponentFixture<NavigationBarComponent>;
   let translateService: TranslateService;
   let authenticationAdaptor: AuthenticationAdaptor;
+  let confirmationService: ConfirmationService;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       imports: [
         UserModule,
+        LibraryModule,
         HttpClientTestingModule,
         RouterTestingModule,
         FormsModule,
@@ -65,11 +69,12 @@ describe('NavigationBarComponent', () => {
         MenuModule
       ],
       declarations: [NavigationBarComponent],
-      providers: [MessageService, AuthenticationAdaptor]
+      providers: [MessageService, AuthenticationAdaptor, ConfirmationService]
     }).compileComponents();
 
     fixture = TestBed.createComponent(NavigationBarComponent);
     component = fixture.componentInstance;
+    confirmationService = TestBed.get(ConfirmationService);
     translateService = TestBed.get(TranslateService);
     spyOn(translateService, 'use').and.callThrough();
     authenticationAdaptor = TestBed.get(AuthenticationAdaptor);
@@ -227,6 +232,25 @@ describe('NavigationBarComponent', () => {
       it('sets the language', () => {
         expect(component.language).toEqual(LANGUAGE);
       });
+    });
+  });
+
+  describe('user log out', () => {
+    beforeEach(() => {
+      spyOn(authenticationAdaptor, 'startLogout');
+      spyOn(
+        confirmationService,
+        'confirm'
+      ).and.callFake((confirm: Confirmation) => confirm.accept());
+      component.logout();
+    });
+
+    it('prompts the user', () => {
+      expect(confirmationService.confirm).toHaveBeenCalled();
+    });
+
+    it('calls the authentication adaptor', () => {
+      expect(authenticationAdaptor.startLogout).toHaveBeenCalled();
     });
   });
 });

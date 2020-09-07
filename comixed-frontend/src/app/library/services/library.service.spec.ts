@@ -32,15 +32,20 @@ import { LoggerModule } from '@angular-ru/logger';
 
 import { LibraryService } from './library.service';
 import {
+  CLEAR_IMAGE_CACHE_URL,
   CONSOLIDATE_LIBRARY_URL,
   CONVERT_COMICS_URL,
   DELETE_MULTIPLE_COMICS_URL,
   GET_LIBRARY_UPDATES_URL,
-  START_RESCAN_URL
+  START_RESCAN_URL,
+  UNDELETE_MULTIPLE_COMICS_URL
 } from 'app/library/library.constants';
 import { HttpResponse } from '@angular/common/http';
 import { ConvertComicsRequest } from 'app/library/models/net/convert-comics-request';
 import { ConsolidateLibraryRequest } from 'app/library/models/net/consolidate-library-request';
+import { ClearImageCacheResponse } from 'app/library/models/net/clear-image-cache-response';
+import { UndeleteMultipleComicsResponse } from 'app/library/models/net/undelete-multiple-comics-response';
+import { UndeleteMultipleComicsRequest } from 'app/library/models/net/undelete-multiple-comics-request';
 
 describe('LibraryService', () => {
   const LAST_UPDATED_DATE = new Date();
@@ -56,6 +61,10 @@ describe('LibraryService', () => {
   const LAST_READ_DATES = [COMIC_1_LAST_READ_DATE];
   const COMIC_COUNT = 2372;
   const LATEST_UPDATED_DATE = new Date();
+  const DIRECTORY = '/Users/comixedreader/Documents/comics';
+  const RENAMING_RULE =
+    '$PUBLISHER/$SERIES/$VOLUME/$SERIES v$VOLUME #$ISSUE [$COVERDATE]';
+  const COMIC_IDS = [3, 20, 9, 21, 4, 17];
 
   let service: LibraryService;
   let httpMock: HttpTestingController;
@@ -123,7 +132,7 @@ describe('LibraryService', () => {
   });
 
   it('can delete multiple comics', () => {
-    const IDS = [3, 20, 9, 21, 4, 17];
+    const IDS = COMIC_IDS;
 
     service
       .deleteMultipleComics(IDS)
@@ -137,9 +146,26 @@ describe('LibraryService', () => {
     req.flush({ count: IDS.length } as DeleteMultipleComicsResponse);
   });
 
+  it('can undelete multiple comics', () => {
+    const IDS = COMIC_IDS;
+
+    service.undeleteMultipleComics(IDS).subscribe(response => {
+      expect(response).toEqual({
+        success: true
+      } as UndeleteMultipleComicsResponse);
+    });
+
+    const req = httpMock.expectOne(interpolate(UNDELETE_MULTIPLE_COMICS_URL));
+    expect(req.request.method).toEqual('POST');
+    expect(req.request.body).toEqual({
+      ids: COMIC_IDS
+    } as UndeleteMultipleComicsRequest);
+    req.flush({ success: true } as UndeleteMultipleComicsResponse);
+  });
+
   it('can convert comics', () => {
     service
-      .convertComics(COMICS, 'CBZ', true)
+      .convertComics(COMICS, 'CBZ', true, false, false)
       .subscribe((response: HttpResponse<any>) =>
         expect(response.status).toEqual(200)
       );
@@ -149,21 +175,38 @@ describe('LibraryService', () => {
     expect(req.request.body).toEqual({
       ids: COMICS.map(comic => comic.id),
       archiveType: 'CBZ',
-      renamePages: true
+      renamePages: true,
+      deletePages: false,
+      deleteOriginal: false
     } as ConvertComicsRequest);
-    req.flush(new HttpResponse<any>({ status: 200 }));
+    req.flush(
+      new HttpResponse<any>({ status: 200 })
+    );
   });
 
   it('can consolidate the library', () => {
     service
-      .consolidate(true)
+      .moveComics(true, DIRECTORY, RENAMING_RULE)
       .subscribe(response => expect(response).toEqual(COMICS));
 
     const req = httpMock.expectOne(interpolate(CONSOLIDATE_LIBRARY_URL));
     expect(req.request.method).toEqual('POST');
     expect(req.request.body).toEqual({
-      deletePhysicalFiles: true
+      deletePhysicalFiles: true,
+      targetDirectory: DIRECTORY,
+      renamingRule: RENAMING_RULE
     } as ConsolidateLibraryRequest);
     req.flush(COMICS);
+  });
+
+  it('can clear the image cache', () => {
+    const RESPONSE = { success: true } as ClearImageCacheResponse;
+    service
+      .clearImageCache()
+      .subscribe(response => expect(response).toEqual(RESPONSE));
+
+    const req = httpMock.expectOne(interpolate(CLEAR_IMAGE_CACHE_URL));
+    expect(req.request.method).toEqual('DELETE');
+    req.flush(RESPONSE);
   });
 });

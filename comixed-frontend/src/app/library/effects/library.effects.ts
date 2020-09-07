@@ -30,22 +30,24 @@ import { Observable, of } from 'rxjs';
 import { catchError, map, switchMap, tap } from 'rxjs/operators';
 import {
   LibraryActionTypes,
+  LibraryClearImageCacheFailed,
   LibraryComicsConverting,
-  LibraryConsolidate,
-  LibraryConsolidated,
-  LibraryConsolidateFailed,
   LibraryConvertComics,
   LibraryConvertComicsFailed,
   LibraryDeleteMultipleComics,
   LibraryDeleteMultipleComicsFailed,
   LibraryGetUpdates,
   LibraryGetUpdatesFailed,
+  LibraryImageCacheCleared,
   LibraryMultipleComicsDeleted,
+  LibraryMultipleComicsUndeleted,
   LibraryRescanStarted,
   LibraryStartRescanFailed,
+  LibraryUndeleteMultipleComics,
+  LibraryUndeleteMultipleComicsFailed,
   LibraryUpdatesReceived
 } from '../actions/library.actions';
-import { Comic } from 'app/comics';
+import { ClearImageCacheResponse } from 'app/library/models/net/clear-image-cache-response';
 
 @Injectable()
 export class LibraryEffects {
@@ -175,7 +177,7 @@ export class LibraryEffects {
             severity: 'info',
             detail: this.translateService.instant(
               'library-effects.delete-multiple-comics.success.detail',
-              { count: response.count }
+              { count: action.ids.length }
             )
           })
         ),
@@ -210,13 +212,65 @@ export class LibraryEffects {
   );
 
   @Effect()
+  undeleteMultipleComics$: Observable<Action> = this.actions$.pipe(
+    ofType(LibraryActionTypes.UndeleteMultipleComics),
+    map((action: LibraryUndeleteMultipleComics) => action.payload),
+    tap(action =>
+      this.logger.debug('effect: undelete multiple comics:', action)
+    ),
+    switchMap(action =>
+      this.libraryService.undeleteMultipleComics(action.ids).pipe(
+        tap(response => this.logger.debug('received response:', response)),
+        tap(() =>
+          this.messageService.add({
+            severity: 'info',
+            detail: this.translateService.instant(
+              'library-effects.restore-multiple-comics.success.detail'
+            )
+          })
+        ),
+        map(() => new LibraryMultipleComicsUndeleted()),
+        catchError(error => {
+          this.logger.error(
+            'service failure undeleting multiple comics:',
+            error
+          );
+          this.messageService.add({
+            severity: 'error',
+            detail: this.translateService.instant(
+              'library-effects.undelete-multiple-comics.failure.detail'
+            )
+          });
+          return of(new LibraryUndeleteMultipleComicsFailed());
+        })
+      )
+    ),
+    catchError(error => {
+      this.logger.error('service failure undeleting multiple comics:', error);
+      this.messageService.add({
+        severity: 'error',
+        detail: this.translateService.instant(
+          'general-message.error.general-service-failure'
+        )
+      });
+      return of(new LibraryUndeleteMultipleComicsFailed());
+    })
+  );
+
+  @Effect()
   convertComics$: Observable<Action> = this.actions$.pipe(
     ofType(LibraryActionTypes.ConvertComics),
     map((action: LibraryConvertComics) => action.payload),
     tap(action => this.logger.debug('effect: convert comics:', action)),
     switchMap(action =>
       this.libraryService
-        .convertComics(action.comics, action.archiveType, action.renamePages)
+        .convertComics(
+          action.comics,
+          action.archiveType,
+          action.renamePages,
+          action.deletePages,
+          action.deleteOriginal
+        )
         .pipe(
           tap(response => this.logger.debug('received response:', response)),
           tap(() =>
@@ -253,46 +307,48 @@ export class LibraryEffects {
   );
 
   @Effect()
-  consolidate$: Observable<Action> = this.actions$.pipe(
-    ofType(LibraryActionTypes.Consolidate),
-    tap(action => this.logger.debug('effect: consolidate library:', action)),
-    map((action: LibraryConsolidate) => action.payload),
+  clearImageCache$: Observable<Action> = this.actions$.pipe(
+    ofType(LibraryActionTypes.ClearImageCache),
+    tap(action => this.logger.debug('effect: clearing image cache:', action)),
     switchMap(action =>
-      this.libraryService.consolidate(action.deletePhysicalFiles).pipe(
+      this.libraryService.clearImageCache().pipe(
         tap(response => this.logger.debug('received response:', response)),
-        tap(() =>
+        tap((response: ClearImageCacheResponse) =>
           this.messageService.add({
             severity: 'info',
             detail: this.translateService.instant(
-              'library-effects.consolidate.success.detail'
+              'library-effects.clear-image-cache.success.detail',
+              { success: response.success }
             )
           })
         ),
-        map(
-          (response: Comic[]) =>
-            new LibraryConsolidated({ deletedComics: response })
+
+        map((response: ClearImageCacheResponse) =>
+          response.success
+            ? new LibraryImageCacheCleared()
+            : new LibraryClearImageCacheFailed()
         ),
         catchError(error => {
-          this.logger.error('service failure conslidating library:', error);
+          this.logger.error('service failure clearing image cache:', error);
           this.messageService.add({
             severity: 'error',
             detail: this.translateService.instant(
-              'library-effects.consolidate.error.detail'
+              'library-effects.clear-image-cache.error.detail'
             )
           });
-          return of(new LibraryConsolidateFailed());
+          return of(new LibraryClearImageCacheFailed());
         })
       )
     ),
     catchError(error => {
-      this.logger.error('general failure conslidating library:', error);
+      this.logger.error('general failure clearing image cache:', error);
       this.messageService.add({
         severity: 'error',
         detail: this.translateService.instant(
           'general-message.error.general-service-failure'
         )
       });
-      return of(new LibraryConsolidateFailed());
+      return of(new LibraryClearImageCacheFailed());
     })
   );
 }

@@ -27,8 +27,10 @@ export const SET_BLOCKING_STATE_URL = `${API_ROOT_URL}/pages/hashes/blocking`;
 export const SET_DELETED_STATE_URL = `${API_ROOT_URL}/pages/hashes/deleted`;
 export const START_RESCAN_URL = `${COMIXED_API_ROOT}/comics/rescan`;
 export const DELETE_MULTIPLE_COMICS_URL = `${COMIXED_API_ROOT}/comics/multiple/delete`;
+export const UNDELETE_MULTIPLE_COMICS_URL = `${COMIXED_API_ROOT}/comics/multiple/undelete`;
 export const CONVERT_COMICS_URL = `${COMIXED_API_ROOT}/library/convert`;
-export const CONSOLIDATE_LIBRARY_URL = `${COMIXED_API_ROOT}/library/consolidate`;
+export const CONSOLIDATE_LIBRARY_URL = `${COMIXED_API_ROOT}/library/move`;
+export const CLEAR_IMAGE_CACHE_URL = `${COMIXED_API_ROOT}/library/cache/images`;
 
 export const GET_COLLECTION_ENTRIES_URL = `${API_ROOT_URL}/collections/\${type}`;
 export const GET_PAGE_FOR_ENTRY_URL = `${API_ROOT_URL}/collections/\${type}/\${name}`;
@@ -42,9 +44,13 @@ export const UPDATE_READING_LIST_URL = `${COMIXED_API_ROOT}/lists/\${id}`;
 export const ADD_COMICS_TO_READING_LIST_URL = `${COMIXED_API_ROOT}/lists/\${id}/comics/add`;
 export const REMOVE_COMICS_FROM_READING_LIST = `${COMIXED_API_ROOT}/lists/\${id}/comics/remove`;
 
+export const GET_ALL_PLUGINS_URL = `${COMIXED_API_ROOT}/plugins`;
+export const RELOAD_PLUGINS_URL = `${COMIXED_API_ROOT}/plugins/reload`;
+
 export const COMIC_LIST_MENU_SELECT_ALL = 'comic-list-scrape-select-all';
 export const COMIC_LIST_MENU_DESELECT_ALL = 'comic-list-scrape-deselect-all';
 export const COMIC_LIST_MENU_DELETE_SELECTED = 'comic-list-delete-selected';
+export const COMIC_LIST_MENU_RESTORE_SELECTED = 'comic-list-restore-selected';
 export const COMIC_LIST_MENU_SCRAPE_SELECTED = 'comic-list-scrape-selected';
 export const COMIC_LIST_MENU_CONVERT_COMIC = 'comic-list-convert-comic';
 export const COMIC_LIST_MENU_ADD_TO_READING_LIST =

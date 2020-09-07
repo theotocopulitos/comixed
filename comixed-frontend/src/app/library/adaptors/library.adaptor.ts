@@ -30,12 +30,13 @@ import { filter } from 'rxjs/operators';
 import { extractField } from 'app/library/library.functions';
 import { LastReadDate } from 'app/library/models/last-read-date';
 import {
-  LibraryConsolidate,
+  LibraryClearImageCache,
   LibraryConvertComics,
   LibraryDeleteMultipleComics,
   LibraryGetUpdates,
   LibraryReset,
-  LibraryStartRescan
+  LibraryStartRescan,
+  LibraryUndeleteMultipleComics
 } from 'app/library/actions/library.actions';
 import { ComicAdaptor } from 'app/comics/adaptors/comic.adaptor';
 import { ComicGetIssue } from 'app/comics/actions/comic.actions';
@@ -65,7 +66,8 @@ export class LibraryAdaptor {
   private _timeout = 60;
   private _maximum = 100;
   private _converting$ = new BehaviorSubject<boolean>(false);
-  private _consolidating$ = new BehaviorSubject<boolean>(false);
+  private _clearingImageCache$ = new BehaviorSubject<boolean>(false);
+  private _deleting$ = new BehaviorSubject<boolean>(false);
 
   constructor(
     private store: Store<AppState>,
@@ -128,26 +130,30 @@ export class LibraryAdaptor {
           this._stories$.next(
             extractField(state.comics, CollectionType.STORIES)
           );
-          const readingLists = extractField(
-            state.comics,
-            CollectionType.READING_LISTS
+        }
+
+        // rebuild the reading lists
+        const readingLists = extractField(
+          state.comics,
+          CollectionType.READING_LISTS
+        );
+        // merge in any reading lists that have no comics
+        state.readingLists.forEach(readingList => {
+          const existing = readingLists.find(
+            entry => entry.name === readingList.name
           );
-          // merge in any reading lists that have no comics
-          state.readingLists.forEach(readingList => {
-            const existing = readingLists.find(
-              entry => entry.name === readingList.name
-            );
-            if (!existing) {
-              this.logger.debug('pushing reading list:', readingList);
-              readingLists.push({
-                name: readingList.name,
-                comics: [],
-                count: 0,
-                last_comic_added: 0,
-                type: CollectionType.READING_LISTS
-              } as ComicCollectionEntry);
-            }
-          });
+          if (!existing) {
+            this.logger.debug('pushing reading list:', readingList);
+            readingLists.push({
+              name: readingList.name,
+              comics: [],
+              count: 0,
+              last_comic_added: 0,
+              type: CollectionType.READING_LISTS
+            } as ComicCollectionEntry);
+          }
+        });
+        if (!_.isEqual(this._readingLists$.getValue(), readingLists)) {
           this._readingLists$.next(readingLists);
         }
         if (!_.isEqual(this._lists$.getValue(), state.readingLists)) {
@@ -162,8 +168,11 @@ export class LibraryAdaptor {
         if (state.convertingComics !== this._converting$.getValue()) {
           this._converting$.next(state.convertingComics);
         }
-        if (state.consolidating !== this._consolidating$.getValue()) {
-          this._consolidating$.next(state.consolidating);
+        if (state.clearingImageCache !== this._clearingImageCache$.getValue()) {
+          this._clearingImageCache$.next(state.clearingImageCache);
+        }
+        if (state.deletingComics !== this._deleting$.getValue()) {
+          this._deleting$.next(state.deletingComics);
         }
 
         // if either the last read dates or comics have changed then update all comics' last read date
@@ -260,7 +269,17 @@ export class LibraryAdaptor {
   }
 
   deleteComics(ids: number[]): void {
+    this.logger.debug('firing action to delete comics:', ids);
     this.store.dispatch(new LibraryDeleteMultipleComics({ ids: ids }));
+  }
+
+  get deleting$(): Observable<boolean> {
+    return this._deleting$.asObservable();
+  }
+
+  undeleteComics(ids: number[]): void {
+    this.logger.debug('firing action to undelete comics:', ids);
+    this.store.dispatch(new LibraryUndeleteMultipleComics({ ids: ids }));
   }
 
   private getComicsForSeries(series: string): Comic[] {
@@ -275,37 +294,34 @@ export class LibraryAdaptor {
       );
   }
 
-  convertComics(comics: Comic[], archiveType: string, renamePages: boolean) {
+  convertComics(
+    comics: Comic[],
+    archiveType: string,
+    renamePages: boolean,
+    deletePages: boolean,
+    deleteOriginal: boolean
+  ) {
     this.logger.debug(
       'firing action to convert comics:',
       comics,
       archiveType,
-      renamePages
+      renamePages,
+      deletePages,
+      deleteOriginal
     );
     this.store.dispatch(
       new LibraryConvertComics({
         comics: comics,
         archiveType: archiveType,
-        renamePages: renamePages
+        renamePages: renamePages,
+        deletePages: deletePages,
+        deleteOriginal: deleteOriginal
       })
     );
   }
 
   get converting$(): Observable<boolean> {
     return this._converting$.asObservable();
-  }
-
-  consolidate(deletePhysicalFiles: boolean): void {
-    this.logger.debug(
-      `firing action to consolidate library: deletePhysicalFiles=${deletePhysicalFiles}`
-    );
-    this.store.dispatch(
-      new LibraryConsolidate({ deletePhysicalFiles: deletePhysicalFiles })
-    );
-  }
-
-  get consolidating$(): Observable<boolean> {
-    return this._consolidating$.asObservable();
   }
 
   getReadingList(name: string): ReadingList {
@@ -316,5 +332,14 @@ export class LibraryAdaptor {
     return this._lists$
       .getValue()
       .find(readingList => readingList.name === name);
+  }
+
+  clearImageCache() {
+    this.logger.debug('firing action: clear image cache');
+    this.store.dispatch(new LibraryClearImageCache());
+  }
+
+  get clearingImageCache$(): Observable<boolean> {
+    return this._clearingImageCache$.asObservable();
   }
 }

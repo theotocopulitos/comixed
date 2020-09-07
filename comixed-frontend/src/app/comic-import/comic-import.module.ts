@@ -24,13 +24,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { StoreModule } from '@ngrx/store';
-import {
-  COMIC_IMPORT_FEATURE_KEY,
-  reducer
-} from 'app/comic-import/reducers/comic-import.reducer';
 import { EffectsModule } from '@ngrx/effects';
-import { ComicImportEffects } from 'app/comic-import/effects/comic-import.effects';
-import { ComicImportAdaptor } from 'app/comic-import/adaptors/comic-import.adaptor';
 import { ComicFileListComponent } from 'app/comic-import/components/comic-file-list/comic-file-list.component';
 import { ImportPageComponent } from 'app/comic-import/pages/import-page/import-page.component';
 import { ComicFileCoverUrlPipe } from 'app/comic-import/pipes/comic-file-cover-url.pipe';
@@ -50,6 +44,16 @@ import {
 } from 'primeng/primeng';
 import { UserModule } from 'app/user/user.module';
 import { ComicsModule } from 'app/comics/comics.module';
+import * as fromFindComicFiles from './reducers/find-comic-files.reducer';
+import { FIND_COMIC_FILES_FEATURE_KEY } from './reducers/find-comic-files.reducer';
+import { FindComicFilesEffects } from 'app/comic-import/effects/find-comic-files.effects';
+import * as fromSelectedComicFiles from './reducers/selected-comic-files.reducer';
+import { SELECTED_COMIC_FILES_FEATURE_KEY } from './reducers/selected-comic-files.reducer';
+import { SelectedComicFilesEffects } from 'app/comic-import/effects/selected-comic-files.effects';
+import { ComicImportService } from 'app/comic-import/services/comic-import.service';
+import * as fromImportComic from './reducers/import-comics.reducer';
+import { IMPORT_COMICS_FEATURE_KEY } from './reducers/import-comics.reducer';
+import { ImportComicsEffects } from 'app/comic-import/effects/import-comics.effects';
 
 @NgModule({
   declarations: [
@@ -67,8 +71,20 @@ import { ComicsModule } from 'app/comics/comics.module';
     ComicsModule,
     TranslateModule.forRoot(),
     ComicImportRoutingModule,
-    StoreModule.forFeature(COMIC_IMPORT_FEATURE_KEY, reducer),
-    EffectsModule.forFeature([ComicImportEffects]),
+    StoreModule.forFeature(
+      FIND_COMIC_FILES_FEATURE_KEY,
+      fromFindComicFiles.reducer
+    ),
+    StoreModule.forFeature(
+      SELECTED_COMIC_FILES_FEATURE_KEY,
+      fromSelectedComicFiles.reducer
+    ),
+    StoreModule.forFeature(IMPORT_COMICS_FEATURE_KEY, fromImportComic.reducer),
+    EffectsModule.forFeature([
+      FindComicFilesEffects,
+      SelectedComicFilesEffects,
+      ImportComicsEffects
+    ]),
     ContextMenuModule,
     DataViewModule,
     ProgressBarModule,
@@ -78,7 +94,7 @@ import { ComicsModule } from 'app/comics/comics.module';
     ToolbarModule
   ],
   exports: [CommonModule],
-  providers: [ComicImportAdaptor]
+  providers: [ComicImportService]
 })
 export class ComicImportModule {
   static forRoot(): ModuleWithProviders {

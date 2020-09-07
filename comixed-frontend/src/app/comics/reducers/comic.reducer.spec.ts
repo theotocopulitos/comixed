@@ -17,6 +17,7 @@
  */
 
 import {
+  ComicSetPageDeletedFailed,
   ComicClearMetadata,
   ComicClearMetadataFailed,
   ComicDelete,
@@ -38,8 +39,10 @@ import {
   ComicMarkAsReadFailed,
   ComicMarkedAsRead,
   ComicMetadataCleared,
+  ComicPageDeletedSet,
   ComicPageHashBlockingSet,
   ComicPageSaved,
+  ComicPageTypeSet,
   ComicRestore,
   ComicRestored,
   ComicRestoreFailed,
@@ -48,8 +51,11 @@ import {
   ComicSaveFailed,
   ComicSavePage,
   ComicSavePageFailed,
+  ComicSetPageDeleted,
   ComicSetPageHashBlocking,
-  ComicSetPageHashBlockingFailed
+  ComicSetPageHashBlockingFailed,
+  ComicSetPageType,
+  ComicSetPageTypeFailed
 } from 'app/comics/actions/comic.actions';
 import {
   FORMAT_1,
@@ -70,10 +76,13 @@ import {
 } from 'app/comics/models/scan-type.fixtures';
 import { ComicState, initialState, reducer } from './comic.reducer';
 import { COMIC_1_LAST_READ_DATE } from 'app/library/models/last-read-date.fixtures';
+import { Page } from 'app/comics';
 
 describe('Comic Reducer', () => {
   const COMIC = COMIC_1;
   const LAST_READ_DATE = COMIC_1_LAST_READ_DATE;
+  const PAGE = COMIC.pages[1];
+  const PAGE_TYPE = STORY;
 
   let state: ComicState;
 
@@ -136,6 +145,14 @@ describe('Comic Reducer', () => {
 
     it('clears the saving page flag', () => {
       expect(state.savingPage).toBeFalsy();
+    });
+
+    it('clears the setting page type flag', () => {
+      expect(state.settingPageType).toBeFalsy();
+    });
+
+    it('clears the deleting page flag', () => {
+      expect(state.deletingPage).toBeFalsy();
     });
 
     it('clears the blocking hash state flag', () => {
@@ -427,6 +444,100 @@ describe('Comic Reducer', () => {
 
     it('clears the saving page flag', () => {
       expect(state.savingPage).toBeFalsy();
+    });
+  });
+
+  describe('setting the page type', () => {
+    beforeEach(() => {
+      state = reducer(
+        { ...state, settingPageType: false },
+        new ComicSetPageType({
+          page: PAGE,
+          pageType: PAGE_TYPE
+        })
+      );
+    });
+
+    it('sets the setting page type flag', () => {
+      expect(state.settingPageType).toBeTruthy();
+    });
+  });
+
+  describe('when the page type is set', () => {
+    const UPDATED_PAGE = {
+      ...PAGE,
+      filename: PAGE.filename.substring(1)
+    } as Page;
+    beforeEach(() => {
+      state = reducer(
+        { ...state, settingPageType: true, comic: { ...COMIC } },
+        new ComicPageTypeSet({ page: UPDATED_PAGE })
+      );
+    });
+
+    it('clears the setting page type flag', () => {
+      expect(state.settingPageType).toBeFalsy();
+    });
+
+    it('updates the page in the comic', () => {
+      expect(state.comic.pages).not.toContain(PAGE);
+      expect(state.comic.pages).toContain(UPDATED_PAGE);
+    });
+  });
+
+  describe('when setting the page type fails', () => {
+    beforeEach(() => {
+      state = reducer(
+        { ...state, settingPageType: true },
+        new ComicSetPageTypeFailed()
+      );
+    });
+
+    it('clears the setting page type flag', () => {
+      expect(state.settingPageType).toBeFalsy();
+    });
+  });
+
+  describe('deleting a page', () => {
+    beforeEach(() => {
+      state = reducer(
+        { ...state, deletingPage: false },
+        new ComicSetPageDeleted({ page: COMIC.pages[0], deleted: true })
+      );
+    });
+
+    it('sets the deleting page flag', () => {
+      expect(state.deletingPage).toBeTruthy();
+    });
+  });
+
+  describe('when a page is deleted', () => {
+    beforeEach(() => {
+      state = reducer(
+        { ...state, deletingPage: true, comic: null },
+        new ComicPageDeletedSet({ comic: COMIC })
+      );
+    });
+
+    it('clears the deleting page flag', () => {
+      expect(state.deletingPage).toBeFalsy();
+    });
+
+    it('updates the comic', () => {
+      expect(state.comic).toEqual(COMIC);
+    });
+  });
+
+  describe('failure to delete a page', () => {
+    beforeEach(() => {
+      state = reducer(
+        { ...state, deletingPage: true },
+        new ComicSetPageDeletedFailed()
+      );
+    });
+
+    it('clears the deleting page flag', () => {
+      expect(state.deletingPage).toBeFalsy();
     });
   });
 

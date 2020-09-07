@@ -54,7 +54,6 @@ import {
   TooltipModule,
   TreeModule
 } from 'primeng/primeng';
-import { LibraryDisplayAdaptor } from './adaptors/library-display.adaptor';
 import { LibraryAdaptor } from './adaptors/library.adaptor';
 import { ReadingListAdaptor } from './adaptors/reading-list.adaptor';
 import { SelectionAdaptor } from './adaptors/selection.adaptor';
@@ -83,6 +82,13 @@ import { LibraryNavigationTreeComponent } from './components/library-navigation-
 import { DuplicateComicsPageComponent } from './pages/duplicate-comics-page/duplicate-comics-page.component';
 import { ReadingListEditComponent } from './components/reading-list-edit/reading-list-edit.component';
 import { AddComicsToReadingListComponent } from './components/add-comics-to-list-reading-list/add-comics-to-reading-list.component';
+import { PluginEffects } from './effects/plugin.effects';
+import { PluginAdaptor } from 'app/library/adaptors/plugin.adaptor';
+import * as fromPlugin from 'app/library/reducers/plugin.reducer';
+import { PluginsPageComponent } from './pages/plugins-page/plugins-page.component';
+import * as fromMoveComics from 'app/library/reducers/move-comics.reducer';
+import { MOVE_COMICS_FEATURE_KEY } from 'app/library/reducers/move-comics.reducer';
+import { MoveComicsEffects } from 'app/library/effects/move-comics.effects';
 
 @NgModule({
   imports: [
@@ -91,6 +97,7 @@ import { AddComicsToReadingListComponent } from './components/add-comics-to-list
     ComicsModule,
     UserExperienceModule,
     TranslateModule.forRoot(),
+    StoreModule.forFeature(MOVE_COMICS_FEATURE_KEY, fromMoveComics.reducer),
     StoreModule.forFeature(
       fromLibrary.LIBRARY_FEATURE_KEY,
       fromLibrary.reducer
@@ -111,11 +118,14 @@ import { AddComicsToReadingListComponent } from './components/add-comics-to-list
       fromPublisher.PUBLISHER_FEATURE_KEY,
       fromPublisher.reducer
     ),
+    StoreModule.forFeature(fromPlugin.PLUGIN_FEATURE_KEY, fromPlugin.reducer),
     EffectsModule.forFeature([
+      MoveComicsEffects,
       LibraryEffects,
       ReadingListEffects,
       DuplicatePagesEffects,
-      PublisherEffects
+      PublisherEffects,
+      PluginEffects
     ]),
     ContextMenuModule,
     CheckboxModule,
@@ -154,18 +164,19 @@ import { AddComicsToReadingListComponent } from './components/add-comics-to-list
     LibraryNavigationTreeComponent,
     DuplicateComicsPageComponent,
     ReadingListEditComponent,
-    AddComicsToReadingListComponent
+    AddComicsToReadingListComponent,
+    PluginsPageComponent
   ],
   providers: [
     LibraryService,
     LibraryAdaptor,
-    LibraryDisplayAdaptor,
     SelectionAdaptor,
     DuplicatePagesAdaptors,
     ReadingListService,
     ReadingListAdaptor,
     DuplicatePagesService,
-    PublisherAdaptor
+    PublisherAdaptor,
+    PluginAdaptor
   ]
 })
 export class LibraryModule {

@@ -35,6 +35,8 @@ export interface ComicState {
   noComic: boolean;
   comic: Comic;
   savingPage: boolean;
+  settingPageType: boolean;
+  deletingPage: boolean;
   blockingPageHash: boolean;
   savingComic: boolean;
   clearingMetadata: boolean;
@@ -58,6 +60,8 @@ export const initialState: ComicState = {
   noComic: false,
   comic: null,
   savingPage: false,
+  settingPageType: false,
+  deletingPage: false,
   blockingPageHash: false,
   savingComic: false,
   clearingMetadata: false,
@@ -131,6 +135,29 @@ export function reducer(
 
     case ComicActionTypes.SavePageFailed:
       return { ...state, savingPage: false };
+
+    case ComicActionTypes.SetPageType:
+      return { ...state, settingPageType: true };
+
+    case ComicActionTypes.PageTypeSet: {
+      const updatedPage = action.payload.page;
+      const comic = state.comic;
+      const index = comic.pages.findIndex(page => page.id === updatedPage.id);
+      comic.pages[index] = updatedPage;
+      return { ...state, settingPageType: false, comic: comic };
+    }
+
+    case ComicActionTypes.SetPageTypeFailed:
+      return { ...state, settingPageType: false };
+
+    case ComicActionTypes.SetPageDeleted:
+      return { ...state, deletingPage: true };
+
+    case ComicActionTypes.PageDeletedSet:
+      return { ...state, deletingPage: false, comic: action.payload.comic };
+
+    case ComicActionTypes.SetPageDeletedFailed:
+      return { ...state, deletingPage: false };
 
     case ComicActionTypes.SetPageHashBlocking:
       return { ...state, blockingPageHash: true };

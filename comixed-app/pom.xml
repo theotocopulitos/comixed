@@ -4,11 +4,11 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.comixed</groupId>
+    <groupId>org.comixedproject</groupId>
     <artifactId>comixed</artifactId>
     <version>0.7.0-0</version>
   </parent>
-  <groupId>org.comixed</groupId>
+  <groupId>org.comixedproject</groupId>
   <artifactId>comixed-app</artifactId>
   <version>0.7.0-0</version>
   <name>comixed-app</name>
@@ -19,19 +19,23 @@
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.comixed</groupId>
-      <artifactId>comixed-library</artifactId>
-      <version>${comixed.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.comixed</groupId>
+      <groupId>org.comixedproject</groupId>
       <artifactId>comixed-frontend</artifactId>
       <version>${comixed.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.comixed</groupId>
+      <groupId>org.comixedproject</groupId>
+      <artifactId>comixed-plugins</artifactId>
+      <version>${comixed.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.comixedproject</groupId>
       <artifactId>comixed-rest-api</artifactId>
       <version>${comixed.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
     </dependency>
     <dependency>
       <groupId>mysql</groupId>
@@ -44,7 +48,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
         <configuration>
-            <mainClass>org.comixed.ComiXedApp</mainClass>
+          <mainClass>org.comixedproject.ComiXedApp</mainClass>
         </configuration>
       </plugin>
       <plugin>
@@ -76,26 +80,8 @@
           <verbose>false</verbose>
           <prefix>build-details</prefix>
           <useNativeGit>true</useNativeGit>
+          <offline>true</offline>
         </configuration>
-      </plugin>
-      <plugin>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <version>3.2.0</version>
-        <configuration>
-          <outputDirectory>target/artifacts</outputDirectory>
-          <descriptors>
-            <descriptor>src/main/assembly/src.xml</descriptor>
-          </descriptors>
-        </configuration>
-        <executions>
-          <execution>
-            <id>make-assembly</id>
-            <phase>package</phase>
-            <goals>
-              <goal>single</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
     </plugins>
   </build>

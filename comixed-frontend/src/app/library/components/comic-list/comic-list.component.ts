@@ -28,14 +28,13 @@ import {
 import { ActivatedRoute, Params, Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { Comic } from 'app/comics';
-import { ScrapingAdaptor } from 'app/comics/adaptors/scraping.adaptor';
 import {
+  AppState,
   LibraryAdaptor,
   LibraryDisplayAdaptor,
   ReadingListAdaptor,
   SelectionAdaptor
 } from 'app/library';
-import { LibraryFilter } from 'app/library/models/library-filter';
 import { LoadPageEvent } from 'app/library/models/ui/load-page-event';
 import { AuthenticationAdaptor } from 'app/user';
 import { generateContextMenuItems } from 'app/user-experience';
@@ -50,9 +49,12 @@ import {
   COMIC_LIST_MENU_CONVERT_COMIC,
   COMIC_LIST_MENU_DELETE_SELECTED,
   COMIC_LIST_MENU_DESELECT_ALL,
+  COMIC_LIST_MENU_RESTORE_SELECTED,
   COMIC_LIST_MENU_SCRAPE_SELECTED,
   COMIC_LIST_MENU_SELECT_ALL
 } from 'app/library/library.constants';
+import { scrapeMultipleComics } from 'app/comics/actions/scrape-multiple-comic.actions';
+import { Store } from '@ngrx/store';
 
 @Component({
   selector: 'app-comic-list',
@@ -101,12 +103,12 @@ export class ComicListComponent implements OnInit, OnDestroy {
     private libraryDisplayAdaptor: LibraryDisplayAdaptor,
     private selectionAdaptor: SelectionAdaptor,
     private contextMenuAdaptor: ContextMenuAdaptor,
-    private scrapingAdaptor: ScrapingAdaptor,
     private readingListAdaptor: ReadingListAdaptor,
     private translateService: TranslateService,
     private confirmationService: ConfirmationService,
     private activatedRoute: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private store: Store<AppState>
   ) {
     this.addContextMenuItems();
     this.contextMenuItemsSubscription = this.contextMenuAdaptor.items$.subscribe(
@@ -238,7 +240,9 @@ export class ComicListComponent implements OnInit, OnDestroy {
         { count: this.selectedComics.length }
       ),
       accept: () => {
-        this.scrapingAdaptor.startScraping(this.selectedComics);
+        this.store.dispatch(
+          scrapeMultipleComics({ comics: this.selectedComics })
+        );
         this.selectionAdaptor.clearComicSelections();
         this.router.navigateByUrl('/scraping');
       }
@@ -253,9 +257,33 @@ export class ComicListComponent implements OnInit, OnDestroy {
       message: this.translateService.instant(
         'comic-list.delete-comics.message'
       ),
-      accept: () =>
+      accept: () => {
         this.libraryAdaptor.deleteComics(
-          this._selectedComics.map(comic => comic.id)
+          this._selectedComics
+            .filter(comic => !comic.deletedDate)
+            .map(comic => comic.id)
+        );
+        this.selectionAdaptor.clearComicSelections();
+      }
+    });
+  }
+
+  restoreComics() {
+    this.confirmationService.confirm({
+      header: this.translateService.instant(
+        'comic-list.restore-comics.header',
+        {
+          count: this._selectedComics.length
+        }
+      ),
+      message: this.translateService.instant(
+        'comic-list.restore-comics.message'
+      ),
+      accept: () =>
+        this.libraryAdaptor.undeleteComics(
+          this._selectedComics
+            .filter(comic => !!comic.deletedDate)
+            .map(comic => comic.id)
         )
     });
   }
@@ -268,19 +296,6 @@ export class ComicListComponent implements OnInit, OnDestroy {
         this.selectionAdaptor.deselectComic(comic);
       }
     }
-  }
-
-  showFilters() {
-    this.displayFilters = true;
-  }
-
-  setFilters(filters: LibraryFilter): void {
-    this.filters = filters;
-  }
-
-  onLazyLoad(first: number): void {
-    this.indexOfFirst = first;
-    this.fireLoadPage();
   }
 
   private fireLoadPage(): void {
@@ -322,6 +337,14 @@ export class ComicListComponent implements OnInit, OnDestroy {
       () => this.deleteComics()
     );
     this.contextMenuAdaptor.addItem(
+      COMIC_LIST_MENU_RESTORE_SELECTED,
+      'fa fa-fw fa-trash',
+      'comic-list.context-menu.restore-selected',
+      false,
+      true,
+      () => this.restoreComics()
+    );
+    this.contextMenuAdaptor.addItem(
       COMIC_LIST_MENU_SCRAPE_SELECTED,
       'fa fa-fw fa-fingerprint',
       'comic-list.context-menu.scrape-selected',
@@ -351,6 +374,7 @@ export class ComicListComponent implements OnInit, OnDestroy {
     this.contextMenuAdaptor.removeItem(COMIC_LIST_MENU_SELECT_ALL);
     this.contextMenuAdaptor.removeItem(COMIC_LIST_MENU_DESELECT_ALL);
     this.contextMenuAdaptor.removeItem(COMIC_LIST_MENU_DELETE_SELECTED);
+    this.contextMenuAdaptor.removeItem(COMIC_LIST_MENU_RESTORE_SELECTED);
     this.contextMenuAdaptor.removeItem(COMIC_LIST_MENU_SCRAPE_SELECTED);
     this.contextMenuAdaptor.removeItem(COMIC_LIST_MENU_CONVERT_COMIC);
     this.contextMenuAdaptor.removeItem(COMIC_LIST_MENU_ADD_TO_READING_LIST);
@@ -368,6 +392,7 @@ export class ComicListComponent implements OnInit, OnDestroy {
       }
       this.contextMenuAdaptor.enableItem(COMIC_LIST_MENU_DESELECT_ALL);
       this.contextMenuAdaptor.enableItem(COMIC_LIST_MENU_DELETE_SELECTED);
+      this.contextMenuAdaptor.enableItem(COMIC_LIST_MENU_RESTORE_SELECTED);
       this.contextMenuAdaptor.enableItem(COMIC_LIST_MENU_SCRAPE_SELECTED);
       if (this.authenticationAdaptor.isAdmin) {
         this.contextMenuAdaptor.enableItem(COMIC_LIST_MENU_CONVERT_COMIC);
@@ -377,13 +402,14 @@ export class ComicListComponent implements OnInit, OnDestroy {
       this.contextMenuAdaptor.enableItem(COMIC_LIST_MENU_SELECT_ALL);
       this.contextMenuAdaptor.disableItem(COMIC_LIST_MENU_DESELECT_ALL);
       this.contextMenuAdaptor.disableItem(COMIC_LIST_MENU_DELETE_SELECTED);
+      this.contextMenuAdaptor.disableItem(COMIC_LIST_MENU_RESTORE_SELECTED);
       this.contextMenuAdaptor.disableItem(COMIC_LIST_MENU_SCRAPE_SELECTED);
       this.contextMenuAdaptor.disableItem(COMIC_LIST_MENU_CONVERT_COMIC);
       this.contextMenuAdaptor.hideItem(COMIC_LIST_MENU_ADD_TO_READING_LIST);
     }
   }
 
-  private showConvertDialog() {
+  showConvertDialog() {
     this.showConvertComics = true;
   }
 }

@@ -17,3 +17,4 @@
  */
 
 export { DUPLICATE_PAGE_1 } from './models/duplicate-page.fixtures';
+export * from './models/plugin-descriptor.fixtures';
